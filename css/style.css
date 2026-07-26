@@ -62,7 +62,7 @@ body {
 }
 
 /* Transizione cambio tema */
-body, .sidebar, .card, .stat-card, .hero-display, .hero-screen, .btn,
+body, body::before, .sidebar, .card, .stat-card, .hero-display, .hero-screen, .btn,
 input, select, textarea, .modal, .confirm-box, .login-card, #toast,
 .nav-ico, .badge, th, td, .seg {
   transition: background-color .25s, color .25s, border-color .25s;
@@ -73,15 +73,33 @@ input, select, textarea, .modal, .confirm-box, .login-card, #toast,
 
 [hidden] { display: none !important; }
 
+/* ===== Copertura safe-area / Dynamic Island · z 900 (§5) =====
+   Striscia fissa sopra la colonna contenuto: il contenuto scorre
+   sotto la status bar senza mai leggersi dietro l'isola. */
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 56px; right: 0;
+  height: env(safe-area-inset-top);
+  background: var(--bg);
+  z-index: 900;
+  pointer-events: none;
+}
+@media (min-width: 641px) { body::before { left: 244px; } }
+
 /* ===== Layout ===== */
 .main {
   margin-left: 56px;
   padding: 10px;
+  padding-top: calc(10px + env(safe-area-inset-top));
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
   max-width: 1400px;
 }
 @media (min-width: 641px) {
-  .main { margin-left: 244px; padding: 32px 28px; }
+  .main {
+    margin-left: 244px;
+    padding: 32px 28px;
+    padding-top: calc(32px + env(safe-area-inset-top));
+  }
 }
 
 .page-title {
@@ -110,10 +128,12 @@ input, select, textarea, .modal, .confirm-box, .login-card, #toast,
 
 @media (min-width: 641px) {
   .sidebar {
-    top: 10px; left: 10px;
+    top: calc(10px + env(safe-area-inset-top));
+    left: 10px;
     width: 212px;
-    height: calc(100vh - 20px);
-    height: calc(100dvh - 20px); /* altezza esplicita, mai top+bottom (quirk WebKit) */
+    /* altezza esplicita, mai top+bottom (quirk WebKit) */
+    height: calc(100vh - 20px - env(safe-area-inset-top));
+    height: calc(100dvh - 20px - env(safe-area-inset-top));
     border: 1px solid var(--border);
     border-radius: 24px;
     box-shadow: 0 10px 30px rgba(0,0,0,.35);
@@ -383,7 +403,10 @@ th.col-num, td.importo { text-align: right; }
   background: rgba(0,0,0,.7);
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
-  padding: 16px; touch-action: none;
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  touch-action: none;
 }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
@@ -435,6 +458,8 @@ th.col-num, td.importo { text-align: right; }
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
 .login-card {
   width: 100%; max-width: 360px;
