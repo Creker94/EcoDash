@@ -3,7 +3,7 @@
    Identità: Estoril Blue (variante EcoDash — in origine oro GoldGest)
 
    SCALA Z-INDEX — unica fonte, non inventare livelli:
-   0–200  layout (sticky, sidebar, badge, testate)
+   0–200  layout (sticky, sidebar, badge, testate, tooltip grafici)
    900    copertura safe-area / Dynamic Island
    1000   .modal-overlay
    4000   dialoghi di conferma
@@ -322,6 +322,45 @@ tbody tr:last-child td { border-bottom: none; }
 th.col-num, td.importo { text-align: right; }
 .td-actions { text-align: right; width: 1%; }
 .empty { color: var(--muted); font-size: 13px; padding: 14px 4px; }
+
+/* ===== Grafici (docs/STYLE_GUIDE.md §9) ===== */
+.chart-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px; margin-bottom: 12px;
+}
+.chart-grid .card { margin-bottom: 0; }
+.chart-box { position: relative; }
+.chart { width: 100%; height: auto; display: block; }
+.ch-grid { stroke: var(--border); stroke-width: 1; }
+.ch-lbl { fill: var(--muted); font-family: 'Inter', sans-serif; font-size: 11px; }
+.ch-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.ch-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ch-area { fill: var(--accent-weak); stroke: none; }
+.ch-dot { fill: var(--accent); }
+.ch-green { fill: var(--green); }
+.ch-red { fill: var(--red); }
+
+/* Tooltip grafici = mini-card (§9) · z 10 (fascia layout 0–200) */
+.chart-tip {
+  position: absolute; top: 6px; transform: translateX(-50%);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px;
+  pointer-events: none; white-space: nowrap; z-index: 10;
+}
+.tip-t { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.tip-r { display: flex; justify-content: space-between; gap: 14px; }
+.tip-r .num { font-weight: 700; }
+
+/* Barre orizzontali per categoria */
+.hbar { margin-bottom: 12px; }
+.hbar:last-child { margin-bottom: 0; }
+.hbar-top {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; margin-bottom: 5px;
+}
+.hbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.hbar-fill { height: 100%; background: var(--red); border-radius: 4px; }
 
 /* ===== Modale · z 1000 ===== */
 .modal-overlay {

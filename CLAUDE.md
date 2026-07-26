@@ -22,7 +22,7 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 
 ## Regole non negoziabili (lezioni GoldGest)
 
-1. **Un solo formatter monetario** `fmtEUR` in `js/utils.js` — mai duplicarlo
+1. **Un solo formatter monetario** `fmtEUR` in `js/utils.js` — mai duplicarlo (`fmtNum` è solo per i tick di scala dei grafici, non è monetario)
 2. **Una sola utility data** `oggiISO()` in ora locale — mai `toISOString().slice(0,10)`
 3. **`withBusy(btn, fn)` su ogni scrittura** — anti doppio-tap, previene record duplicati
 4. **Cifre tabulari** su ogni numero incolonnato
@@ -37,7 +37,8 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 
 - Nomi tabelle/colonne DB: italiano, snake_case
 - Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono Estoril con glow)
-- Modalità riservata: `body.privacy` → `blur(6px)` su `.amount`
+- Modalità riservata: `body.privacy` → `blur(6px)` su `.amount` (vale anche per i valori nei tooltip dei grafici)
+- Grafici: **SVG vanilla in `js/charts.js`** (niente librerie), regole in STYLE_GUIDE §9
 - Chiavi in `js/config.js`: URL + publishable key (sicure lato client: la protezione è la RLS)
 - Testo utente in `innerHTML` sempre passato da `esc()`
 - `--blue` semantico (ricorrenti) ≠ accent: quando arriva il modulo ricorrenti, valutare colore alternativo (vedi nota in STYLE_GUIDE §2)
@@ -45,7 +46,7 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 ## Roadmap moduli
 
 1. ✅ Conti + Movimenti (Fase 1)
-2. Dashboard con grafico andamento
+2. ✅ Dashboard con grafici — andamento saldo, entrate/uscite 6 mesi, uscite per categoria (Fase 2)
 3. Scadenze e ricorrenti (IMU, TARI, INPS, cedolare, rate)
 4. Patrimonio (beni: orologi, ecc.)
 5. Debiti e piani di rientro
