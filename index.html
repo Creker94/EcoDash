@@ -44,6 +44,8 @@
       <button class="nav-item" data-view="movimenti"><span class="nav-ico">⇄</span><span class="nav-label">Movimenti</span></button>
       <button class="nav-item" data-view="scadenze"><span class="nav-ico">◷</span><span class="nav-label">Scadenze</span></button>
       <button class="nav-item" data-view="patrimonio"><span class="nav-ico">◈</span><span class="nav-label">Patrimonio</span></button>
+      <button class="nav-item" data-view="debiti"><span class="nav-ico">◒</span><span class="nav-label">Debiti</span></button>
+      <button class="nav-item" data-view="obiettivi"><span class="nav-ico">✦</span><span class="nav-label">Obiettivi</span></button>
       <button class="nav-item" data-view="conti"><span class="nav-ico">▤</span><span class="nav-label">Conti</span></button>
     </nav>
     <div class="sidebar-foot">
@@ -180,7 +182,7 @@
         <div class="stat-card">
           <div class="stat-label">Patrimonio totale</div>
           <div class="stat-card-val stat-accent amount" id="pat-totale">—</div>
-          <div class="stat-sub">liquidità + beni</div>
+          <div class="stat-sub">liquidità + beni + accantonato</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Liquidità</div>
@@ -192,8 +194,59 @@
           <div class="stat-card-val amount" id="pat-beni">—</div>
           <div class="stat-sub" id="pat-beni-sub"></div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Accantonato</div>
+          <div class="stat-card-val amount" id="pat-accantonato">—</div>
+          <div class="stat-sub" id="pat-accantonato-sub"></div>
+        </div>
       </div>
       <div class="stat-grid" id="beni-grid"></div>
+    </section>
+
+    <!-- Debiti -->
+    <section class="view" id="view-debiti" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Debiti</h1>
+        <button class="btn btn-primary" data-open="debito">+ Nuovo debito</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Debito residuo</div>
+          <div class="stat-card-val stat-red amount" id="deb-stat-residuo">—</div>
+          <div class="stat-sub" id="deb-stat-residuo-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Rate mensili</div>
+          <div class="stat-card-val amount" id="deb-stat-rate">—</div>
+          <div class="stat-sub">impegno mensile totale</div>
+        </div>
+      </div>
+      <div class="seg" id="deb-ordine">
+        <button type="button" class="seg-btn active" data-ord="avalanche">Avalanche · tasso</button>
+        <button type="button" class="seg-btn" data-ord="snowball">Snowball · più piccolo</button>
+      </div>
+      <div class="stat-grid" id="debiti-grid"></div>
+    </section>
+
+    <!-- Obiettivi -->
+    <section class="view" id="view-obiettivi" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Obiettivi</h1>
+        <button class="btn btn-primary" data-open="obiettivo">+ Nuovo obiettivo</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Accantonato totale</div>
+          <div class="stat-card-val stat-accent amount" id="ob-stat-versato">—</div>
+          <div class="stat-sub" id="ob-stat-versato-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Traguardo complessivo</div>
+          <div class="stat-card-val amount" id="ob-stat-target">—</div>
+          <div class="stat-sub" id="ob-stat-target-sub"></div>
+        </div>
+      </div>
+      <div class="stat-grid" id="obiettivi-grid"></div>
     </section>
 
     <!-- Conti -->
@@ -322,6 +375,96 @@
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close>Annulla</button>
           <button type="submit" class="btn btn-primary" id="bene-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modale debito · z 1000 -->
+  <div class="modal-overlay" id="modal-debito" hidden>
+    <div class="modal">
+      <h2 class="modal-title" id="deb-title">Nuovo debito</h2>
+      <form id="form-debito">
+        <div class="form-grid">
+          <label class="fld fld-full"><span>Nome</span>
+            <input id="deb-nome" required placeholder="es. Mutuo casa, Finanziamento auto">
+          </label>
+          <label class="fld"><span>Importo iniziale (€)</span>
+            <input type="number" step="0.01" min="0.01" id="deb-iniziale" required inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Residuo attuale (€)</span>
+            <input type="number" step="0.01" min="0" id="deb-residuo" inputmode="decimal" placeholder="vuoto = iniziale">
+          </label>
+          <label class="fld"><span>Tasso annuo (%)</span>
+            <input type="number" step="0.01" min="0" id="deb-tasso" inputmode="decimal" placeholder="per l'avalanche">
+          </label>
+          <label class="fld"><span>Rata mensile (€)</span>
+            <input type="number" step="0.01" min="0" id="deb-rata" inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Quota capitale (€)</span>
+            <input type="number" step="0.01" min="0" id="deb-quota" inputmode="decimal" placeholder="vuoto = intera rata">
+          </label>
+          <label class="fld"><span>Conto di pagamento</span>
+            <select id="deb-conto" required></select>
+          </label>
+          <label class="fld fld-full"><span>Categoria</span>
+            <select id="deb-categoria"></select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="deb-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modale obiettivo · z 1000 -->
+  <div class="modal-overlay" id="modal-obiettivo" hidden>
+    <div class="modal">
+      <h2 class="modal-title" id="ob-title">Nuovo obiettivo</h2>
+      <form id="form-obiettivo">
+        <div class="form-grid">
+          <label class="fld fld-full"><span>Nome</span>
+            <input id="ob-nome" required placeholder="es. Fondo emergenza, PAC ETF">
+          </label>
+          <label class="fld"><span>Traguardo (€)</span>
+            <input type="number" step="0.01" min="0.01" id="ob-target" required inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Già versato (€)</span>
+            <input type="number" step="0.01" min="0" id="ob-versato" inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Rata mensile pianificata (€)</span>
+            <input type="number" step="0.01" min="0" id="ob-rata" inputmode="decimal" placeholder="per la proiezione">
+          </label>
+          <label class="fld"><span>Conto di prelievo</span>
+            <select id="ob-conto"></select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="ob-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modale versamento · z 1000 -->
+  <div class="modal-overlay" id="modal-versa" hidden>
+    <div class="modal">
+      <h2 class="modal-title" id="versa-title">Versa</h2>
+      <form id="form-versa">
+        <div class="form-grid">
+          <label class="fld"><span>Importo (€)</span>
+            <input type="number" step="0.01" min="0.01" id="versa-importo" required inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Dal conto</span>
+            <select id="versa-conto" required></select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="versa-btn">Versa</button>
         </div>
       </form>
     </div>

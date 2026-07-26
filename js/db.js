@@ -87,5 +87,49 @@ const DB = {
   async delBene(id) {
     const { error } = await sb.from('beni').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  async debiti() {
+    const { data, error } = await sb.from('debiti')
+      .select('*').order('estinto').order('created_at');
+    if (error) throw error;
+    return data;
+  },
+
+  async addDebito(p) {
+    const { error } = await sb.from('debiti').insert(p);
+    if (error) throw error;
+  },
+
+  async updDebito(id, patch) {
+    const { error } = await sb.from('debiti').update(patch).eq('id', id);
+    if (error) throw error;
+  },
+
+  async delDebito(id) {
+    const { error } = await sb.from('debiti').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async obiettivi() {
+    const { data, error } = await sb.from('obiettivi')
+      .select('*').eq('archiviato', false).order('created_at');
+    if (error) throw error;
+    return data;
+  },
+
+  async addObiettivo(p) {
+    const { error } = await sb.from('obiettivi').insert(p);
+    if (error) throw error;
+  },
+
+  async updObiettivo(id, patch) {
+    const { error } = await sb.from('obiettivi').update(patch).eq('id', id);
+    if (error) throw error;
+  },
+
+  async delObiettivo(id) {
+    const { error } = await sb.from('obiettivi').delete().eq('id', id);
+    if (error) throw error;
   }
 };
