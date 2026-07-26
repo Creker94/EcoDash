@@ -18,18 +18,33 @@ function oggiISO(d = new Date()) {
   return `${y}-${m}-${g}`;
 }
 
-// Aggiunge n mesi a una data ISO.
-// Se la data di partenza è l'ULTIMO giorno del mese, il risultato resta
-// ancorato all'ultimo giorno (31/07 → 31/08 → 30/09 → 31/10): senza questa
-// regola una rata a fine mese "scivolava" al 30 e non risaliva più.
-// Altrimenti si mantiene il giorno, troncato alla lunghezza del mese.
+// Aggiunge n mesi a una data ISO, troncando il giorno alla lunghezza
+// del mese di arrivo (31/01 + 1 = 28/02). Per le RICORRENZE non usare
+// questa: usa prossimaData(), che non perde il giorno di riferimento.
 function addMesi(iso, n) {
   const [y, m, g] = iso.split('-').map(Number);
-  const ultimoOrig = new Date(y, m, 0).getDate();
   const target = new Date(y, m - 1 + n, 1);
   const ultimo = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-  target.setDate(g >= ultimoOrig ? ultimo : Math.min(g, ultimo));
+  target.setDate(Math.min(g, ultimo));
   return oggiISO(target);
+}
+
+// Prossima occorrenza di una ricorrenza: n mesi avanti, riportando il
+// giorno all'ANCORA (31 = fine mese). Senza ancora, addMesi accumula
+// deriva passando per febbraio: 30/01 → 28/02 → 28/03 e il 30 è perso.
+// Con ancora = 30: 30/01 → 28/02 → 30/03, sempre agganciata al giorno giusto.
+function prossimaData(iso, n, ancora = null) {
+  const [y, m, g] = iso.split('-').map(Number);
+  const giorno = Number(ancora) || g;
+  const target = new Date(y, m - 1 + n, 1);
+  const ultimo = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(giorno, ultimo));
+  return oggiISO(target);
+}
+
+// Giorno (1–31) di una data ISO: usato per ricavare l'ancora dal form
+function giornoDi(iso) {
+  return iso ? Number(iso.slice(8, 10)) : null;
 }
 
 // Data ISO → gg/mm/aa senza passare da Date (niente bug di fuso)
