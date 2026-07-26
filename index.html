@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>EcoDash</title>
+  <meta name="description" content="Gestione finanziaria personale">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EcoDash">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Login · z 9999: copre tutto -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card">
+      <div class="logo">Eco<span>Dash</span></div>
+      <p class="login-sub">Accedi per continuare</p>
+      <form id="login-form">
+        <label class="fld"><span>Email</span>
+          <input type="email" id="login-email" required autocomplete="email" inputmode="email">
+        </label>
+        <label class="fld"><span>Password</span>
+          <input type="password" id="login-pass" required autocomplete="current-password">
+        </label>
+        <button class="btn btn-primary btn-block" id="login-btn" type="submit">Accedi</button>
+        <button class="btn btn-ghost btn-block" id="signup-btn" type="button">Prima volta? Crea l'account</button>
+      </form>
+      <p id="login-msg" class="login-msg"></p>
+    </div>
+  </div>
+
+  <!-- Sidebar: rail su mobile, pannello sospeso da 641px -->
+  <aside class="sidebar">
+    <div class="logo">Eco<span>Dash</span></div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-ico">◆</span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-item" data-view="movimenti"><span class="nav-ico">⇄</span><span class="nav-label">Movimenti</span></button>
+      <button class="nav-item" data-view="conti"><span class="nav-ico">▤</span><span class="nav-label">Conti</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="nav-item" id="privacy-toggle" title="Modalità riservata"><span class="nav-ico">◉</span><span class="nav-label">Riservata</span></button>
+      <button class="nav-item" id="theme-toggle" title="Cambia tema"><span class="nav-ico">☾</span><span class="nav-label">Tema</span></button>
+      <button class="nav-item" id="logout-btn" title="Esci"><span class="nav-ico">⏻</span><span class="nav-label">Esci</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Dashboard -->
+    <section class="view" id="view-dashboard">
+      <h1 class="page-title">Dashboard</h1>
+
+      <div class="hero-display">
+        <div class="hero-label">Saldo totale</div>
+        <div class="hero-screen"><span class="hero-num amount" id="hero-saldo">—</span></div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Entrate · mese</div>
+          <div class="stat-card-val stat-green amount" id="stat-entrate">—</div>
+          <div class="stat-sub" id="stat-entrate-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Uscite · mese</div>
+          <div class="stat-card-val stat-red amount" id="stat-uscite">—</div>
+          <div class="stat-sub" id="stat-uscite-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Bilancio · mese</div>
+          <div class="stat-card-val amount" id="stat-bilancio">—</div>
+          <div class="stat-sub">entrate − uscite</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Ultimi movimenti</h2>
+          <button class="btn btn-primary btn-sm" data-open="movimento">+ Nuovo</button>
+        </div>
+        <div class="table-wrap">
+          <table id="tbl-recenti">
+            <thead><tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th class="col-num">Importo</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Movimenti -->
+    <section class="view" id="view-movimenti" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Movimenti</h1>
+        <button class="btn btn-primary" data-open="movimento">+ Nuovo movimento</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="tbl-movimenti">
+            <thead><tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Conto</th><th class="col-num">Importo</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conti -->
+    <section class="view" id="view-conti" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Conti</h1>
+        <button class="btn btn-primary" data-open="conto">+ Nuovo conto</button>
+      </div>
+      <div class="stat-grid" id="conti-grid"></div>
+    </section>
+
+  </main>
+
+  <!-- Modale nuovo movimento · z 1000 -->
+  <div class="modal-overlay" id="modal-movimento" hidden>
+    <div class="modal">
+      <h2 class="modal-title">Nuovo movimento</h2>
+      <div class="seg" id="mov-tipo">
+        <button type="button" class="seg-btn active" data-tipo="uscita">Uscita</button>
+        <button type="button" class="seg-btn" data-tipo="entrata">Entrata</button>
+      </div>
+      <form id="form-movimento">
+        <div class="form-grid">
+          <label class="fld"><span>Importo (€)</span>
+            <input type="number" step="0.01" min="0.01" id="mov-importo" required inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Data</span>
+            <input type="date" id="mov-data" required>
+          </label>
+          <label class="fld"><span>Conto</span>
+            <select id="mov-conto" required></select>
+          </label>
+          <label class="fld"><span>Categoria</span>
+            <select id="mov-categoria"></select>
+          </label>
+          <label class="fld fld-full"><span>Descrizione</span>
+            <input type="text" id="mov-desc" placeholder="es. Spesa settimanale">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="mov-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modale nuovo conto · z 1000 -->
+  <div class="modal-overlay" id="modal-conto" hidden>
+    <div class="modal">
+      <h2 class="modal-title">Nuovo conto</h2>
+      <form id="form-conto">
+        <div class="form-grid">
+          <label class="fld"><span>Nome</span>
+            <input id="conto-nome" required placeholder="es. Conto principale">
+          </label>
+          <label class="fld"><span>Tipo</span>
+            <select id="conto-tipo">
+              <option value="corrente">Corrente</option>
+              <option value="risparmio">Risparmio</option>
+              <option value="contanti">Contanti</option>
+              <option value="carta">Carta</option>
+              <option value="investimento">Investimento</option>
+            </select>
+          </label>
+          <label class="fld fld-full"><span>Saldo iniziale (€)</span>
+            <input type="number" step="0.01" id="conto-saldo" value="0" inputmode="decimal">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="conto-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Conferma azioni distruttive · z 4000 -->
+  <div class="confirm-overlay" id="confirm" hidden>
+    <div class="confirm-box">
+      <p id="confirm-msg">Confermi?</p>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="confirm-no">Annulla</button>
+        <button class="btn btn-danger" id="confirm-yes">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast · z 9500 · pointer-events:none -->
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

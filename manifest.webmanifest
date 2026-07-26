@@ -1,0 +1,11 @@
+{
+  "name": "EcoDash",
+  "short_name": "EcoDash",
+  "description": "Gestione finanziaria personale",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "lang": "it",
+  "icons": []
+}
