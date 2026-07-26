@@ -301,7 +301,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
   .form-actions .btn { width: 100%; }
 }
 
-/* Segmented (tipo movimento/scadenza) */
+/* Segmented (tipo movimento/scadenza, ordinamento debiti) */
 .seg {
   display: flex; gap: 3px; padding: 3px; margin-bottom: 14px;
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
@@ -327,9 +327,16 @@ th.col-num, td.importo { text-align: right; }
 .td-actions { text-align: right; width: 1%; }
 .empty { color: var(--muted); font-size: 13px; padding: 14px 4px; }
 
-/* ===== Patrimonio ===== */
+/* ===== Patrimonio / card con azioni ===== */
 .bene-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .bene-actions { display: flex; gap: 4px; flex: none; }
+
+/* Barra di avanzamento (debiti rimborsati, obiettivi raggiunti) */
+.prog {
+  height: 8px; margin-top: 10px;
+  background: var(--surface2); border-radius: 4px; overflow: hidden;
+}
+.prog-fill { height: 100%; background: var(--accent); border-radius: 4px; }
 
 /* ===== Grafici (docs/STYLE_GUIDE.md §9) ===== */
 .chart-grid {

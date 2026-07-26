@@ -15,11 +15,13 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 
 ## Schema DB (via migrazioni Supabase)
 
-- `conti` — nome, tipo (corrente/risparmio/contanti/carta/investimento), saldo_iniziale, archiviato
+- `conti` — nome, tipo, saldo_iniziale, archiviato
 - `categorie` — nome, tipo (entrata/uscita), colore
-- `movimenti` — conto_id, categoria_id, **importo numeric(12,2) con segno** (entrate +, uscite −), descrizione, data (`date`), note
-- `scadenze` — nome, importo con segno, data_scadenza, ricorrenza (nessuna/mensile/bimestrale/trimestrale/semestrale/annuale), conto_id, categoria_id, archiviata. **Modello "prossima occorrenza"**: la registrazione crea un movimento e fa avanzare la data (o archivia se una tantum)
-- `beni` — nome, tipo (orologio/immobile/veicolo/oggetto/altro), valore_stimato, prezzo_acquisto (per delta guadagno/perdita), data_acquisto, venduto. I venduti sono esclusi dai totali e resi in grigio `#9ca3af`
+- `movimenti` — conto_id, categoria_id, **importo numeric(12,2) con segno** (entrate +, uscite −), descrizione, data, note
+- `scadenze` — modello "prossima occorrenza": la registrazione crea un movimento e fa avanzare la data (o archivia se una tantum)
+- `beni` — valore_stimato, prezzo_acquisto (delta), venduto (grigio, fuori dai totali)
+- `debiti` — importo_iniziale, residuo, tasso (per avalanche), rata, **quota_capitale** (se valorizzata, il residuo scende solo di quella; il movimento resta l'intera rata — corretto per i mutui), estinto
+- `obiettivi` — target, versato, rata_mensile (per la proiezione), conto_id preferito, archiviato
 - Tutte con `user_id default auth.uid()` + policy RLS `user_id = auth.uid()`
 
 ## Regole non negoziabili (lezioni GoldGest)
@@ -30,7 +32,7 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 4. **Cifre tabulari** su ogni numero incolonnato
 5. **z-index solo dalla scala** documentata in `docs/STYLE_GUIDE.md` §5 — mai inventati
 6. Colore mai unico portatore di significato: sempre segno/testo accanto
-7. Azioni distruttive o che scrivono da una riga → sempre conferma (`confirmAsk(msg, okLabel, okDanger)`); feedback via toast, stesso verbo dall'inizio alla fine ("Salva" → "Salvato", "Registra" → "Registrata")
+7. Azioni distruttive o che scrivono da una riga → sempre conferma (`confirmAsk(msg, okLabel, okDanger)`); feedback via toast, stesso verbo dall'inizio alla fine ("Salva" → "Salvato", "Registra" → "Registrata", "Versa" → "Versato")
 8. Toast sempre `pointer-events:none`; hover solo dentro `@media (hover:hover)`
 9. **Identità Estoril Blue**: accent `#3d7dd8` su tema scuro (glifo NERO sull'accent), `#1f5cb0` su tema chiaro (glifo BIANCO sull'accent). Mai invertire i glifi tra i temi.
 10. Mai `#000`/`#fff` come sfondi
@@ -38,20 +40,23 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 ## Convenzioni
 
 - Nomi tabelle/colonne DB: italiano, snake_case
-- Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono Estoril con glow); sotto, riga "Patrimonio con beni" quando esistono beni attivi
-- Modalità riservata: `body.privacy` → `blur(6px)` su `.amount` (vale anche per i valori nei tooltip dei grafici)
+- Componente-firma: **saldo hero a display**; sotto, riga "Patrimonio complessivo" (liquidità + beni + accantonato)
+- Modalità riservata: `body.privacy` → `blur(6px)` su `.amount` (anche tooltip grafici)
 - Grafici: **SVG vanilla in `js/charts.js`** (niente librerie), regole in STYLE_GUIDE §9
 - Stati scadenze: Scaduta = rosso · In arrivo (≤30 gg) = arancio `#f59e0b` · Programmata = `--blue`
-- Patrimonio totale = liquidità conti + valore beni attivi; il bene si modifica (✎) invece di eliminare/ricreare, la vendita è uno stato
+- Debiti: ordinamento **avalanche** (tasso desc) o **snowball** (residuo asc); badge "priorità" arancio sul primo attivo; barra `.prog` = % rimborsato in accent
+- Obiettivi: "Versa" crea movimento in uscita dal conto + incrementa `versato` (liquidità ↓, accantonato ↑, patrimonio coerente); proiezione traguardo da `rata_mensile` via `addMesi`
 - Chiavi in `js/config.js`: URL + publishable key (sicure lato client: la protezione è la RLS)
 - Testo utente in `innerHTML` sempre passato da `esc()`
-- `--blue` semantico (ricorrenti/programmate) ≠ accent: se in uso diventa ambiguo, valutare colore alternativo (vedi nota in STYLE_GUIDE §2)
+- `--blue` semantico ≠ accent: se in uso diventa ambiguo, valutare colore alternativo (STYLE_GUIDE §2)
 
 ## Roadmap moduli
 
 1. ✅ Conti + Movimenti (Fase 1)
-2. ✅ Dashboard con grafici — andamento saldo, entrate/uscite 6 mesi, uscite per categoria (Fase 2)
-3. ✅ Scadenze e ricorrenti — stati colorati, registrazione con avanzamento automatico (Fase 3)
-4. ✅ Patrimonio — beni con valore stimato, delta su acquisto, stato venduto (Fase 4)
-5. Debiti e piani di rientro
-6. PAC e obiettivi
+2. ✅ Dashboard con grafici (Fase 2)
+3. ✅ Scadenze e ricorrenti (Fase 3)
+4. ✅ Patrimonio (Fase 4)
+5. ✅ Debiti — avalanche/snowball, rata con quota capitale (Fase 5)
+6. ✅ Obiettivi e PAC — versamenti, proiezioni (Fase 6)
+
+**Roadmap completata.** Prossime evoluzioni candidate: trasferimenti tra conti, service worker + offline (regole §8), storico valutazioni beni, export dati, notifiche scadenze.
