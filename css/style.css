@@ -1,5 +1,6 @@
 /* ============================================================
    EcoDash — design system (fonte: docs/STYLE_GUIDE.md)
+   Identità: Estoril Blue (variante EcoDash — in origine oro GoldGest)
 
    SCALA Z-INDEX — unica fonte, non inventare livelli:
    0–200  layout (sticky, sidebar, badge, testate)
@@ -18,9 +19,9 @@
   --surface: #181818;
   --surface2: #222222;
   --border: #2e2e2e;
-  --accent: #e8c547;
-  --accent2: #c9a227;
-  --accent-weak: rgba(232,197,71,.16);
+  --accent: #3d7dd8;     /* Estoril chiaro — identità, luminoso sul tema scuro */
+  --accent2: #2f65b5;    /* Estoril profondo — hover del primario */
+  --accent-weak: rgba(61,125,216,.16); /* fondi tinta Estoril */
   --text: #f0ede8;
   --muted: #9a9a9a;
   --red: #e05a5a;
@@ -34,9 +35,9 @@ body.light {
   --surface: #ffffff;
   --surface2: #ece8df;
   --border: #dcd7cc;
-  --accent: #b8941f;
-  --accent2: #9c7d18;
-  --accent-weak: #f3ecda;
+  --accent: #1f5cb0;     /* Estoril II — si scurisce per il contrasto */
+  --accent2: #17498f;
+  --accent-weak: #dde9f8;
   --text: #1f1d18;
   --muted: #6f6a60;
   --red: #c0392b;
@@ -128,7 +129,8 @@ input, select, textarea, .modal, .confirm-box, .login-card, #toast,
 }
 .logo span { color: var(--accent); }
 
-/* Nav a chip: quadratino 28px raggio 9 su surface2; attiva = oro con glifo nero */
+/* Nav a chip: quadratino 28px raggio 9 su surface2; attiva = accent
+   (glifo nero su tema scuro, bianco su tema chiaro) */
 .nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
@@ -147,6 +149,7 @@ input, select, textarea, .modal, .confirm-box, .login-card, #toast,
 }
 .nav-item.active { background: var(--accent-weak); color: var(--text); }
 .nav-item.active .nav-ico { background: var(--accent); border-color: var(--accent); color: #000; }
+body.light .nav-item.active .nav-ico { color: #fff; }
 .nav-label { display: none; }
 @media (min-width: 641px) { .nav-label { display: inline; } }
 
@@ -207,7 +210,7 @@ body.light .hero-screen { box-shadow: inset 0 2px 8px rgba(31,29,24,.12); }
 .stat-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .stat-green { color: var(--green); }
 .stat-red { color: var(--red); }
-.stat-gold { color: var(--accent); }
+.stat-accent { color: var(--accent); }
 
 /* ===== Numeri e denaro (regola centrale) ===== */
 .stat-card-val, .num, .col-num, .badge, td.importo {
@@ -231,13 +234,13 @@ body.privacy .amount { filter: blur(6px); }
   font-size: 11px; font-weight: 500;
 }
 .badge.green  { background: #1a3326; color: var(--green); }
-.badge.yellow { background: #2d2610; color: var(--accent); }
+.badge.accent { background: #16263f; color: var(--accent); }
 .badge.red    { background: #2a1515; color: var(--red); }
 .badge.blue   { background: #152030; color: var(--blue); }
 .badge.orange { background: #2d1f10; color: #f59e0b; }
 .badge.grey   { background: #26262a; color: #9ca3af; }
 body.light .badge.green  { background: #e3f4ea; }
-body.light .badge.yellow { background: #f6efd2; }
+body.light .badge.accent { background: #dce8f8; }
 body.light .badge.red    { background: #fbe3e0; }
 body.light .badge.blue   { background: #e1ecfb; }
 body.light .badge.orange { background: #fdeed7; }
@@ -253,6 +256,7 @@ body.light .badge.grey   { background: #ececef; color: #6b7280; }
 .btn-sm { min-height: 34px; padding: 6px 12px; }
 .btn-block { width: 100%; }
 .btn-primary { background: var(--accent); color: #000; }
+body.light .btn-primary { color: #fff; }
 .btn-ghost { background: var(--surface2); border-color: var(--border); color: var(--text); }
 .btn-danger { background: #2a1515; color: var(--red); border-color: #3d1f1f; }
 body.light .btn-danger { background: #fbe3e0; border-color: #eac4bd; }
@@ -304,6 +308,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
   padding: 8px; border-radius: 6px; cursor: pointer; min-height: 38px;
 }
 .seg-btn.active { background: var(--accent); color: #000; }
+body.light .seg-btn.active { color: #fff; }
 
 /* ===== Tabelle ===== */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }

@@ -11,7 +11,7 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 - Frontend: vanilla HTML/CSS/JS, nessun framework, nessun build step
 - Backend: Supabase — progetto **EcoDash**, ref `zznyhifatcpctkpeubtj`, regione `eu-central-1`
 - Auth: Supabase Auth (email + password), RLS attiva su tutte le tabelle
-- Repo: `Creker94/EcoDash` · Deploy: Netlify (statico)
+- Repo: `Creker94/EcoDash` (pubblico) · Deploy: Netlify — https://ecodash-app.netlify.app (auto-deploy da `main`)
 
 ## Schema DB (via migrazioni Supabase)
 
@@ -30,16 +30,17 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 6. Colore mai unico portatore di significato: sempre segno/testo accanto
 7. Azioni distruttive → sempre conferma; feedback sempre via toast, stesso verbo dall'inizio alla fine ("Salva" → "Salvato")
 8. Toast sempre `pointer-events:none`; hover solo dentro `@media (hover:hover)`
-9. Oro `#e8c547` solo su tema scuro; su chiaro l'accento è `#b8941f`; testo sui bottoni oro sempre nero
+9. **Identità Estoril Blue**: accent `#3d7dd8` su tema scuro (glifo NERO sull'accent), `#1f5cb0` su tema chiaro (glifo BIANCO sull'accent). Mai invertire i glifi tra i temi.
 10. Mai `#000`/`#fff` come sfondi
 
 ## Convenzioni
 
 - Nomi tabelle/colonne DB: italiano, snake_case
-- Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono oro con glow)
+- Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono Estoril con glow)
 - Modalità riservata: `body.privacy` → `blur(6px)` su `.amount`
 - Chiavi in `js/config.js`: URL + publishable key (sicure lato client: la protezione è la RLS)
 - Testo utente in `innerHTML` sempre passato da `esc()`
+- `--blue` semantico (ricorrenti) ≠ accent: quando arriva il modulo ricorrenti, valutare colore alternativo (vedi nota in STYLE_GUIDE §2)
 
 ## Roadmap moduli
 

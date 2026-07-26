@@ -1,22 +1,24 @@
 # Guida di stile — derivata da GoldGest v2.347
 
-> Punto di partenza per EcoDash (dashboard gestione economica familiare/personale). Tutti i valori sono **estratti direttamente da `public/css/style.css` e `index.html` della v2.347** — nessun valore inventato. Le uniche parti "proposte" sono gli adattamenti al dominio finanziario, marcati 🔶.
+> Punto di partenza per EcoDash (dashboard gestione economica familiare/personale). Tutti i valori strutturali sono **estratti direttamente da `public/css/style.css` e `index.html` della v2.347** — nessun valore inventato. Le parti "proposte" o adattate al dominio finanziario sono marcate 🔶.
+>
+> **Variante EcoDash (lug 2026)** 🔶: l'accento identitario non è più l'oro ma l'**Estoril Blue** (scelta del proprietario). Regola glifi adattata: su tema scuro l'accent è luminoso e regge il **glifo nero** (come in GoldGest); su tema chiaro l'accent si scurisce e il glifo diventa **bianco** — il blu profondo, a differenza dell'oro scuro, non ha la luminanza per il nero.
 
 ---
 
 ## 1. Filosofia di design
 
-1. **Dark-first.** Tema scuro default, tema chiaro alternativo (`body.light`). Niente nero puro come superficie: il nero `#000` compare solo come testo/glifo sopra l'oro.
-2. **Un solo accento: l'oro.** `--accent` è l'identità; tutto il resto è neutro o semantico. Regola di linguaggio: **oro → testo/glifo nero** (bottoni primari, chip attive).
+1. **Dark-first.** Tema scuro default, tema chiaro alternativo (`body.light`). Niente nero puro come superficie: il nero `#000` compare solo come testo/glifo sopra l'accent (tema scuro).
+2. **Un solo accento: l'Estoril Blue.** 🔶 `--accent` è l'identità; tutto il resto è neutro o semantico. Regola di linguaggio: **accent → glifo nero su tema scuro, glifo bianco su tema chiaro** (bottoni primari, chip attive).
 3. **Mobile-first, PWA-first.** Progettata per iPhone in standalone; tablet e desktop sono adattamenti (sidebar "sospesa", più respiro).
 4. **Numeri "da gestionale serio".** Tutti gli importi e i contatori in **JetBrains Mono con cifre tabulari**: le colonne non "ballano". In un'app finanziaria è la regola più importante.
 5. **Il colore comunica lo stato** (badge tinta scura + testo colore pieno), ma mai da solo: sempre con testo o segno.
-6. **Un componente-firma legato al dominio.** In GoldGest è `.targa` (targa italiana fedele, banda blu UE, bianca in entrambi i temi). In EcoDash 🔶 è il **saldo hero come display a segmenti** (pannello inset + numero mono oro).
+6. **Un componente-firma legato al dominio.** In GoldGest è `.targa`. In EcoDash 🔶 è il **saldo hero come display** (pannello inset + numero mono Estoril con glow).
 7. **Zero azioni ambigue.** Ogni scrittura è protetta da anti doppio-tap (`withBusy`), dà feedback via toast e usa lo stesso verbo dall'inizio alla fine.
 
 ---
 
-## 2. Token colore (reali, v2.347)
+## 2. Token colore
 
 ```css
 :root {
@@ -25,14 +27,14 @@
   --surface: #181818;
   --surface2: #222222;   /* input, chip, righe in rilievo */
   --border: #2e2e2e;
-  --accent: #e8c547;     /* oro — identità */
-  --accent2: #c9a227;    /* oro profondo — hover del primario */
-  --accent-weak: rgba(232,197,71,.16); /* fondi tinta oro */
+  --accent: #3d7dd8;     /* Estoril chiaro — identità 🔶 (in origine oro #e8c547) */
+  --accent2: #2f65b5;    /* Estoril profondo — hover del primario 🔶 (era #c9a227) */
+  --accent-weak: rgba(61,125,216,.16); /* fondi tinta accent */
   --text: #f0ede8;
   --muted: #9a9a9a;      /* era #888: alzato in v2.300, ~4.3:1 era al limite sui 12-13px */
   --red: #e05a5a;
   --green: #5acd8a;
-  --blue: #5a9fe0;
+  --blue: #5a9fe0;       /* blu SEMANTICO (ricorrenti) — distinto dall'accent */
   --radius: 12px;
 }
 
@@ -42,9 +44,9 @@ body.light {
   --surface: #ffffff;
   --surface2: #ece8df;
   --border: #dcd7cc;
-  --accent: #b8941f;     /* l'oro si scurisce per il contrasto */
-  --accent2: #9c7d18;
-  --accent-weak: #f3ecda;
+  --accent: #1f5cb0;     /* Estoril II — si scurisce per il contrasto 🔶 (era #b8941f) */
+  --accent2: #17498f;
+  --accent-weak: #dde9f8;
   --text: #1f1d18;
   --muted: #6f6a60;
   --red: #c0392b;
@@ -55,12 +57,14 @@ body.light {
 
 Colori fuori variabile ma canonici: arancione `#f59e0b` (stato "scadenze/da incassare") e grigio `#9ca3af` (stato "archiviato"/neutro).
 
+⚠️ Nota aperta 🔶: con l'accent blu, il `--blue` semantico dei "ricorrenti" è vicino all'identità. Quando arriverà il modulo ricorrenti (Fase 3), valutare se spostare il semantico su un altro colore (es. viola/teal).
+
 ### Fondi badge (tinta scura del colore, testo nel colore pieno)
 
 | Badge | Scuro | Chiaro |
 |---|---|---|
 | green | `#1a3326` | `#e3f4ea` |
-| yellow (oro) | `#2d2610` | `#f6efd2` |
+| accent (Estoril) 🔶 | `#16263f` | `#dce8f8` |
 | red | `#2a1515` | `#fbe3e0` |
 | blue | `#152030` | `#e1ecfb` |
 | orange | `#2d1f10` | `#fdeed7` |
@@ -72,9 +76,9 @@ Colori fuori variabile ma canonici: arancione `#f59e0b` (stato "scadenze/da inca
 |---|---|
 | Entrate / positivo | `--green` (classe `.pos`, già nel linguaggio GoldGest) |
 | Uscite / negativo | `--red` (classe `.neg`) |
-| Risparmio / patrimonio / obiettivi | `--accent` — il dato "prezioso" |
+| Risparmio / patrimonio / obiettivi | `--accent` (Estoril) — il dato "prezioso" |
 | Budget in esaurimento / scadenze | `#f59e0b` |
-| Ricorrenti / previsti (rate, abbonamenti) | `--blue` |
+| Ricorrenti / previsti (rate, abbonamenti) | `--blue` (vedi nota sopra) |
 | Mesi chiusi / archiviato | `#9ca3af` |
 
 ---
@@ -129,7 +133,7 @@ const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EU
 - **Breakpoint:** ≤640 mobile (drawer/rail, `html,body{overflow-x:clip}`) · 641–1024 tablet · >1024 desktop. Contenuto `max-width: 1400px` centrato.
 - **Griglia statistiche:** `repeat(auto-fit, minmax(220px, 1fr))`.
 - **Sidebar** 212px fissa; da 641px in su diventa **pannello sospeso**: staccato 10px dai bordi, raggio 24, `box-shadow: 0 10px 30px rgba(0,0,0,.35)` (chiaro: `rgba(31,29,24,.10)`). Altezza esplicita in `dvh`, **mai ancoraggio top+bottom** (quirk WebKit).
-- **Nav a chip** (v2.320): icona in un quadratino arrotondato (28px, raggio 9) su `--surface2`; voce attiva → chip **oro con glifo nero**. Niente barrette laterali: lo stato lo racconta la chip.
+- **Nav a chip** (v2.320): icona in un quadratino arrotondato (28px, raggio 9) su `--surface2`; voce attiva → chip **accent** (glifo nero su scuro, bianco su chiaro). Niente barrette laterali: lo stato lo racconta la chip.
 - **Scrollbar custom:** 6px, thumb `--border` raggio 3.
 - **Transizione cambio tema:** `background-color .25s, color .25s, border-color .25s` sugli elementi tematizzati.
 
@@ -154,19 +158,19 @@ const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EU
 
 ## 6. Componenti
 
-**Card statistica** — `--surface`, bordo 1px `--border`, raggio 12, padding 20. Struttura: label 11px uppercase muted → valore 28px JetBrains Mono 700 tabular → sottotitolo 12px muted. Colore del valore = semantica (`.stat-green`, `.stat-red`, oro…).
+**Card statistica** — `--surface`, bordo 1px `--border`, raggio 12, padding 20. Struttura: label 11px uppercase muted → valore 28px JetBrains Mono 700 tabular → sottotitolo 12px muted. Colore del valore = semantica (`.stat-green`, `.stat-red`, `.stat-accent`…).
 
 **Badge** — raggio 8 ("in famiglia con le card"), padding 3px 10px, 11px w500, fondo tinta + testo colore pieno (tabelle §2).
 
 **Bottoni**
 
-- Primario: `--accent` + testo `#000`, hover → `--accent2`. `min-height: 44px`.
-- Ghost: `--surface2` + bordo `--border`; hover → bordo e testo oro.
+- Primario: `--accent` + testo `#000` su tema scuro, `#fff` su tema chiaro 🔶; hover → `--accent2`. `min-height: 44px`.
+- Ghost: `--surface2` + bordo `--border`; hover → bordo e testo accent.
 - Danger: fondo tinta rossa scura `#2a1515`, testo `--red`, bordo `#3d1f1f` (non rosso pieno).
 - `@media (pointer:coarse) { .btn:not(.btn-sm){ min-height:44px } }` — target 44pt su touch.
 - `:disabled { opacity:.55 }`.
 
-**Form** — input/select/textarea: `--surface2`, bordo `--border`, raggio 8, padding 10px 12px, 13px Inter; focus → bordo oro. Griglia `form-grid` 2 colonne gap 14 (1 colonna su mobile); `form-actions` allineate a destra con divisore sopra (mobile: colonna invertita, primario in basso vicino al pollice).
+**Form** — input/select/textarea: `--surface2`, bordo `--border`, raggio 8, padding 10px 12px, 13px Inter; focus → bordo accent. Griglia `form-grid` 2 colonne gap 14 (1 colonna su mobile); `form-actions` allineate a destra con divisore sopra (mobile: colonna invertita, primario in basso vicino al pollice).
 
 **Tabelle** — 13px; le tabelle larghe scorrono **dentro** `.table-wrap` (`overflow-x:auto` + `-webkit-overflow-scrolling:touch`), mai spingono in fuori il layout. Colonne numeriche a destra, tabular.
 
@@ -204,7 +208,7 @@ const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EU
 ## 9. Grafici (proposta per la dashboard) 🔶
 
 - Sfondo = `--surface`, griglia = `--border`, label = `--muted` Inter 11–12px, valori in JetBrains Mono tabular.
-- Serie principale (saldo/patrimonio): **oro**. Entrate/uscite: `--green` / `--red`. Max 5–6 colori, poi "Altro" grigio.
+- Serie principale (saldo/patrimonio): **Estoril** (`--accent`). Entrate/uscite: `--green` / `--red`. Max 5–6 colori, poi "Altro" grigio.
 - Tooltip = mini-card (`--surface2`, bordo, raggio 8).
 - Barre con raggio 4 in cima; niente gradienti decorativi né 3D.
 
@@ -212,9 +216,9 @@ const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EU
 
 ## 10. Cosa NON fare
 
-- ❌ `#000` / `#fff` come sfondi (il nero è riservato al testo su oro).
-- ❌ Oro `#e8c547` su tema chiaro: lì l'accento è `#b8941f`.
-- ❌ Testo bianco sui bottoni oro.
+- ❌ `#000` / `#fff` come sfondi (il nero è riservato ai glifi sull'accent, tema scuro).
+- ❌ Accent del tema scuro `#3d7dd8` su tema chiaro: lì l'accento è `#1f5cb0`. 🔶
+- ❌ Glifo bianco sull'accent in tema scuro; glifo nero sull'accent in tema chiaro. 🔶
 - ❌ Due formatter monetari, due utility data.
 - ❌ Numeri incolonnati senza `tabular-nums`.
 - ❌ Colore come unico portatore di significato.
@@ -230,6 +234,6 @@ const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EU
 - [ ] Target touch ≥ 44px; `:focus-visible` visibile ovunque
 - [ ] Doppio tap rapido su ogni "Salva" → un solo record
 - [ ] Tutti gli importi da `fmtEUR`, tutti incolonnati tabular
-- [ ] Contrasto ≥ 4.5:1 (attenzione a `--muted` sui 12px e all'oro su chiaro)
+- [ ] Contrasto ≥ 4.5:1 (attenzione a `--muted` sui 12px e all'accent come testo piccolo)
 - [ ] Nessuno scroll orizzontale della pagina (le tabelle scorrono nei loro wrap)
 - [ ] Versione app + cache SW aggiornate insieme

@@ -305,7 +305,7 @@ function renderConti() {
     ? CONTI.map(c => `
       <div class="stat-card">
         <div class="stat-label">${esc(c.nome)}</div>
-        <div class="stat-card-val stat-gold amount">${fmtEUR.format(saldoConto(c.id))}</div>
+        <div class="stat-card-val stat-accent amount">${fmtEUR.format(saldoConto(c.id))}</div>
         <div class="stat-sub"><span class="badge grey">${esc(c.tipo)}</span></div>
       </div>`).join('')
     : '<div class="empty">Nessun conto: creane uno con "+ Nuovo conto"</div>';
