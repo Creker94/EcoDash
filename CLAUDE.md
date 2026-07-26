@@ -1,6 +1,14 @@
-# CLAUDE.md — EcoDash
+# CLAUDE.md — EcoDash · Passaporto del progetto
 
-Istruzioni operative per lavorare su questo progetto. **La fonte di verità per il design è `docs/STYLE_GUIDE.md`**: leggerla prima di toccare la UI.
+Istruzioni operative per lavorare su questo progetto. **La fonte di verità per il design è `docs/STYLE_GUIDE.md`**: leggere quella e questo file per intero prima di toccare codice o UI.
+
+## Stato — aggiornato al 26/07/2026
+
+- **Roadmap completata: tutte e 6 le fasi sono in produzione** su https://ecodash-app.netlify.app
+- Ogni push su `main` va online automaticamente (statico, nessun build step)
+- Connettori necessari per operare: **GitHub** (`Creker94/EcoDash`), **Supabase** (ref `zznyhifatcpctkpeubtj`), **Netlify** (progetto `ecodash-app`, siteId `1aef73da-701a-4e01-9472-723d9988ce99`)
+- Lo schema DB si modifica **solo via migrazioni Supabase** (`apply_migration`), mai a mano
+- Prossime evoluzioni candidate: in fondo a questo file
 
 ## Cos'è
 
@@ -59,4 +67,11 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 5. ✅ Debiti — avalanche/snowball, rata con quota capitale (Fase 5)
 6. ✅ Obiettivi e PAC — versamenti, proiezioni (Fase 6)
 
-**Roadmap completata.** Prossime evoluzioni candidate: trasferimenti tra conti, service worker + offline (regole §8), storico valutazioni beni, export dati, notifiche scadenze.
+**Roadmap completata.** Prossime evoluzioni candidate, in ordine di valore stimato:
+
+1. **Trasferimenti tra conti** (oggi un giroconto richiede due movimenti manuali)
+2. **Service worker + offline** seguendo le regole §8 della guida (cache solo `res.ok`, bump versione+cache insieme, barra aggiornamento a z 6000)
+3. **Storico valutazioni beni** (tabella `beni_valori`) per il grafico del patrimonio nel tempo
+4. **Export dati** (CSV) — ricordare la regola §8.5: le scritture su DB si completano prima, l'export è sempre l'ultima operazione
+5. **Icone PWA** nel manifest + notifiche per le scadenze in arrivo
+6. Modifica movimenti e scadenze esistenti (oggi solo elimina/ricrea)
