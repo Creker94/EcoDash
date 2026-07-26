@@ -42,6 +42,7 @@
     <nav class="nav">
       <button class="nav-item active" data-view="dashboard"><span class="nav-ico">◆</span><span class="nav-label">Dashboard</span></button>
       <button class="nav-item" data-view="movimenti"><span class="nav-ico">⇄</span><span class="nav-label">Movimenti</span></button>
+      <button class="nav-item" data-view="scadenze"><span class="nav-ico">◷</span><span class="nav-label">Scadenze</span></button>
       <button class="nav-item" data-view="conti"><span class="nav-ico">▤</span><span class="nav-label">Conti</span></button>
     </nav>
     <div class="sidebar-foot">
@@ -77,6 +78,19 @@
           <div class="stat-label">Bilancio · mese</div>
           <div class="stat-card-val amount" id="stat-bilancio">—</div>
           <div class="stat-sub">entrate − uscite</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Prossime scadenze</h2>
+          <button class="btn btn-ghost btn-sm" data-view-go="scadenze">Tutte</button>
+        </div>
+        <div class="table-wrap">
+          <table id="tbl-dash-scadenze">
+            <thead><tr><th>Data</th><th>Nome</th><th>Stato</th><th class="col-num">Importo</th></tr></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
 
@@ -120,6 +134,34 @@
         <div class="table-wrap">
           <table id="tbl-movimenti">
             <thead><tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Conto</th><th class="col-num">Importo</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scadenze -->
+    <section class="view" id="view-scadenze" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Scadenze</h1>
+        <button class="btn btn-primary" data-open="scadenza">+ Nuova scadenza</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Uscite previste · 30 gg</div>
+          <div class="stat-card-val stat-orange amount" id="sca-stat-arrivo">—</div>
+          <div class="stat-sub" id="sca-stat-arrivo-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Scadute</div>
+          <div class="stat-card-val stat-red amount" id="sca-stat-scadute">—</div>
+          <div class="stat-sub" id="sca-stat-scadute-sub"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="tbl-scadenze">
+            <thead><tr><th>Data</th><th>Nome</th><th>Ricorrenza</th><th>Stato</th><th class="col-num">Importo</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -171,6 +213,50 @@
     </div>
   </div>
 
+  <!-- Modale nuova scadenza · z 1000 -->
+  <div class="modal-overlay" id="modal-scadenza" hidden>
+    <div class="modal">
+      <h2 class="modal-title">Nuova scadenza</h2>
+      <div class="seg" id="sca-tipo">
+        <button type="button" class="seg-btn active" data-tipo="uscita">Uscita</button>
+        <button type="button" class="seg-btn" data-tipo="entrata">Entrata</button>
+      </div>
+      <form id="form-scadenza">
+        <div class="form-grid">
+          <label class="fld fld-full"><span>Nome</span>
+            <input id="sca-nome" required placeholder="es. IMU acconto, TARI rata 2, Netflix">
+          </label>
+          <label class="fld"><span>Importo (€)</span>
+            <input type="number" step="0.01" min="0.01" id="sca-importo" required inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Prossima scadenza</span>
+            <input type="date" id="sca-data" required>
+          </label>
+          <label class="fld"><span>Ricorrenza</span>
+            <select id="sca-ric">
+              <option value="nessuna">Nessuna (una tantum)</option>
+              <option value="mensile">Mensile</option>
+              <option value="bimestrale">Bimestrale</option>
+              <option value="trimestrale">Trimestrale</option>
+              <option value="semestrale">Semestrale</option>
+              <option value="annuale">Annuale</option>
+            </select>
+          </label>
+          <label class="fld"><span>Conto di addebito</span>
+            <select id="sca-conto" required></select>
+          </label>
+          <label class="fld fld-full"><span>Categoria</span>
+            <select id="sca-categoria"></select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>Annulla</button>
+          <button type="submit" class="btn btn-primary" id="sca-salva">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modale nuovo conto · z 1000 -->
   <div class="modal-overlay" id="modal-conto" hidden>
     <div class="modal">
@@ -201,7 +287,7 @@
     </div>
   </div>
 
-  <!-- Conferma azioni distruttive · z 4000 -->
+  <!-- Conferma azioni · z 4000 -->
   <div class="confirm-overlay" id="confirm" hidden>
     <div class="confirm-box">
       <p id="confirm-msg">Confermi?</p>

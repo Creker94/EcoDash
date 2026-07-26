@@ -1,9 +1,12 @@
 // ============================================================
-// EcoDash — bootstrap, auth, viste (Fase 1–2: conti, movimenti, grafici)
+// EcoDash — bootstrap, auth, viste (Fasi 1–3: conti, movimenti,
+// grafici, scadenze e ricorrenti)
 // ============================================================
 
-let CONTI = [], CATEGORIE = [], MOVIMENTI = [];
+let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [];
 let tipoMovimento = 'uscita';
+let tipoScadenza = 'uscita';
+const MESI_RIC = { mensile: 1, bimestrale: 2, trimestrale: 3, semestrale: 6, annuale: 12 };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -14,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setPrivacy(localStorage.getItem('ecodash-privacy') === '1', false);
   bindUI();
   $('#mov-data').value = oggiISO();
+  $('#sca-data').value = oggiISO();
 
   const { data: { session } } = await sb.auth.getSession();
   if (session) { hideLogin(); boot(); }
@@ -39,10 +43,14 @@ async function boot() {
 }
 
 async function refresh() {
-  [CONTI, CATEGORIE, MOVIMENTI] = await Promise.all([DB.conti(), DB.categorie(), DB.movimenti()]);
+  [CONTI, CATEGORIE, MOVIMENTI, SCADENZE] = await Promise.all([
+    DB.conti(), DB.categorie(), DB.movimenti(), DB.scadenze()
+  ]);
   renderDashboard();
+  renderDashScadenze();
   renderCharts();
   renderMovimenti();
+  renderScadenze();
   renderConti();
   fillSelects();
 }
@@ -101,6 +109,8 @@ function bindUI() {
     $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + b.dataset.view; });
     window.scrollTo(0, 0);
   }));
+  $$('[data-view-go]').forEach(b => b.addEventListener('click', () =>
+    $(`.nav-item[data-view="${b.dataset.viewGo}"]`).click()));
 
   // Toggle tema / riservata / logout
   $('#theme-toggle').addEventListener('click', () =>
@@ -117,6 +127,7 @@ function bindUI() {
 
   // Apertura modali
   $$('[data-open="movimento"]').forEach(b => b.addEventListener('click', openMovimento));
+  $$('[data-open="scadenza"]').forEach(b => b.addEventListener('click', openScadenza));
   $$('[data-open="conto"]').forEach(b => b.addEventListener('click', () => {
     $('#modal-conto').hidden = false;
   }));
@@ -131,11 +142,16 @@ function bindUI() {
     if (e.key === 'Escape') $$('.modal-overlay').forEach(o => { o.hidden = true; });
   });
 
-  // Tipo movimento (segmented)
+  // Segmented tipo (movimento e scadenza)
   $$('#mov-tipo .seg-btn').forEach(b => b.addEventListener('click', () => {
     tipoMovimento = b.dataset.tipo;
     $$('#mov-tipo .seg-btn').forEach(x => x.classList.toggle('active', x === b));
     fillCategoriaSelect();
+  }));
+  $$('#sca-tipo .seg-btn').forEach(b => b.addEventListener('click', () => {
+    tipoScadenza = b.dataset.tipo;
+    $$('#sca-tipo .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    fillCategoriaSelectScadenza();
   }));
 
   // Form movimento
@@ -155,6 +171,33 @@ function bindUI() {
         $('#modal-movimento').hidden = true;
         $('#form-movimento').reset();
         $('#mov-data').value = oggiISO();
+        toast('Salvato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nel salvataggio: riprova', 'error');
+      }
+    });
+  });
+
+  // Form scadenza
+  $('#form-scadenza').addEventListener('submit', (e) => {
+    e.preventDefault();
+    withBusy($('#sca-salva'), async () => {
+      try {
+        const raw = Math.abs(parseFloat($('#sca-importo').value));
+        if (!raw) { toast('Inserisci un importo valido', 'error'); return; }
+        await DB.addScadenza({
+          nome: $('#sca-nome').value.trim(),
+          importo: tipoScadenza === 'uscita' ? -raw : raw,
+          data_scadenza: $('#sca-data').value,
+          ricorrenza: $('#sca-ric').value,
+          conto_id: $('#sca-conto').value,
+          categoria_id: $('#sca-categoria').value || null
+        });
+        $('#modal-scadenza').hidden = true;
+        $('#form-scadenza').reset();
+        $('#sca-data').value = oggiISO();
         toast('Salvato', 'success');
         await refresh();
       } catch (err) {
@@ -186,7 +229,7 @@ function bindUI() {
     });
   });
 
-  // Conferma azioni distruttive
+  // Conferma azioni
   $('#confirm-no').addEventListener('click', () => closeConfirm(false));
   $('#confirm-yes').addEventListener('click', () => closeConfirm(true));
 }
@@ -200,10 +243,22 @@ function openMovimento() {
   $('#modal-movimento').hidden = false;
 }
 
+function openScadenza() {
+  if (CONTI.length === 0) {
+    toast('Crea prima un conto', 'error');
+    $('#modal-conto').hidden = false;
+    return;
+  }
+  $('#modal-scadenza').hidden = false;
+}
+
 // ---------- Conferma (z 4000) ----------
 let _confirmResolve = null;
-function confirmAsk(msg) {
+function confirmAsk(msg, okLabel = 'Elimina', okDanger = true) {
   $('#confirm-msg').textContent = msg;
+  const y = $('#confirm-yes');
+  y.textContent = okLabel;
+  y.className = 'btn ' + (okDanger ? 'btn-danger' : 'btn-primary');
   $('#confirm').hidden = false;
   return new Promise(res => { _confirmResolve = res; });
 }
@@ -214,14 +269,21 @@ function closeConfirm(ok) {
 
 // ---------- Select ----------
 function fillSelects() {
-  $('#mov-conto').innerHTML = CONTI
-    .map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  const opzConti = CONTI.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  $('#mov-conto').innerHTML = opzConti;
+  $('#sca-conto').innerHTML = opzConti;
   fillCategoriaSelect();
+  fillCategoriaSelectScadenza();
 }
 function fillCategoriaSelect() {
   const opts = CATEGORIE.filter(c => c.tipo === tipoMovimento)
     .map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
   $('#mov-categoria').innerHTML = '<option value="">\u2014 nessuna \u2014</option>' + opts;
+}
+function fillCategoriaSelectScadenza() {
+  const opts = CATEGORIE.filter(c => c.tipo === tipoScadenza)
+    .map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  $('#sca-categoria').innerHTML = '<option value="">\u2014 nessuna \u2014</option>' + opts;
 }
 
 // ---------- Calcoli ----------
@@ -302,6 +364,112 @@ function renderCharts() {
   Charts.line($('#chart-saldo'), (CONTI.length || MOVIMENTI.length) ? serieSaldo() : []);
   Charts.bars($('#chart-mesi'), serieMensile());
   Charts.hbars($('#chart-cat'), speseCategoria());
+}
+
+// ---------- Scadenze ----------
+function statoScadenza(s) {
+  const oggi = oggiISO();
+  const entro = oggiISO(new Date(Date.now() + 30 * 86400000));
+  if (s.data_scadenza < oggi) return { label: 'Scaduta', cls: 'red' };
+  if (s.data_scadenza <= entro) return { label: 'In arrivo', cls: 'orange' };
+  return { label: 'Programmata', cls: 'blue' };
+}
+
+function rigaScadenza(s) {
+  const st = statoScadenza(s);
+  const ric = `<span class="badge grey">${s.ricorrenza === 'nessuna' ? 'una tantum' : esc(s.ricorrenza)}</span>`;
+  return `<tr>
+    <td class="num">${dataIT(s.data_scadenza)}</td>
+    <td>${esc(s.nome)}</td>
+    <td>${ric}</td>
+    <td><span class="badge ${st.cls}">${st.label}</span></td>
+    <td class="importo">${importoHTML(Number(s.importo))}</td>
+    <td class="td-actions">
+      <button class="btn btn-ghost btn-sm" data-paga="${s.id}" title="Registra movimento">\u2713</button>
+      <button class="btn btn-ghost btn-sm" data-delsca="${s.id}" title="Elimina">\u2715</button>
+    </td>
+  </tr>`;
+}
+
+function renderScadenze() {
+  const oggi = oggiISO();
+  const entro = oggiISO(new Date(Date.now() + 30 * 86400000));
+  const scadute = SCADENZE.filter(s => s.data_scadenza < oggi);
+  const arrivo = SCADENZE.filter(s => s.data_scadenza >= oggi && s.data_scadenza <= entro);
+  const uscDi = a => Math.abs(a.filter(s => s.importo < 0).reduce((x, s) => x + Number(s.importo), 0));
+
+  $('#sca-stat-arrivo').textContent = fmtEUR.format(uscDi(arrivo));
+  $('#sca-stat-arrivo-sub').textContent = arrivo.length + ' scadenze';
+  $('#sca-stat-scadute').textContent = fmtEUR.format(uscDi(scadute));
+  $('#sca-stat-scadute-sub').textContent = scadute.length + ' da registrare';
+
+  const tb = $('#tbl-scadenze tbody');
+  tb.innerHTML = SCADENZE.length
+    ? SCADENZE.map(rigaScadenza).join('')
+    : '<tr><td colspan="6" class="empty">Nessuna scadenza: aggiungi IMU, TARI, rate e abbonamenti con "+ Nuova scadenza"</td></tr>';
+
+  tb.querySelectorAll('[data-paga]').forEach(b => b.addEventListener('click', async () => {
+    const s = SCADENZE.find(x => x.id === b.dataset.paga);
+    if (!s) return;
+    const conto = CONTI.find(c => c.id === s.conto_id);
+    if (!conto) { toast('Assegna un conto valido alla scadenza', 'error'); return; }
+    const ok = await confirmAsk(
+      `Registrare "${s.nome}" (${fmtEUR.format(s.importo)}) oggi su ${conto.nome}?`,
+      'Registra', false);
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.addMovimento({
+          conto_id: s.conto_id,
+          categoria_id: s.categoria_id || null,
+          importo: Number(s.importo),
+          descrizione: s.nome,
+          data: oggiISO()
+        });
+        if (s.ricorrenza === 'nessuna') {
+          await DB.updScadenza(s.id, { archiviata: true });
+        } else {
+          await DB.updScadenza(s.id, { data_scadenza: addMesi(s.data_scadenza, MESI_RIC[s.ricorrenza]) });
+        }
+        toast('Registrata', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nella registrazione: riprova', 'error');
+      }
+    });
+  }));
+
+  tb.querySelectorAll('[data-delsca]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmAsk('Eliminare definitivamente questa scadenza?');
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.delScadenza(b.dataset.delsca);
+        toast('Eliminata', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nell\'eliminazione: riprova', 'error');
+      }
+    });
+  }));
+}
+
+function renderDashScadenze() {
+  const tb = $('#tbl-dash-scadenze tbody');
+  const prossime = SCADENZE.slice(0, 5);
+  tb.innerHTML = prossime.length
+    ? prossime.map(s => {
+        const st = statoScadenza(s);
+        return `<tr>
+          <td class="num">${dataIT(s.data_scadenza)}</td>
+          <td>${esc(s.nome)}</td>
+          <td><span class="badge ${st.cls}">${st.label}</span></td>
+          <td class="importo">${importoHTML(Number(s.importo))}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="4" class="empty">Nessuna scadenza in programma</td></tr>';
 }
 
 // ---------- Render ----------

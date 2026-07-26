@@ -18,6 +18,15 @@ function oggiISO(d = new Date()) {
   return `${y}-${m}-${g}`;
 }
 
+// Aggiunge n mesi a una data ISO (giorno bloccato a fine mese se serve)
+function addMesi(iso, n) {
+  const [y, m, g] = iso.split('-').map(Number);
+  const target = new Date(y, m - 1 + n, 1);
+  const ultimo = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(g, ultimo));
+  return oggiISO(target);
+}
+
 // Data ISO → gg/mm/aa senza passare da Date (niente bug di fuso)
 function dataIT(iso) {
   if (!iso) return '';

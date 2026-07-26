@@ -43,5 +43,27 @@ const DB = {
   async delMovimento(id) {
     const { error } = await sb.from('movimenti').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  async scadenze() {
+    const { data, error } = await sb.from('scadenze')
+      .select('*').eq('archiviata', false).order('data_scadenza');
+    if (error) throw error;
+    return data;
+  },
+
+  async addScadenza(p) {
+    const { error } = await sb.from('scadenze').insert(p);
+    if (error) throw error;
+  },
+
+  async updScadenza(id, patch) {
+    const { error } = await sb.from('scadenze').update(patch).eq('id', id);
+    if (error) throw error;
+  },
+
+  async delScadenza(id) {
+    const { error } = await sb.from('scadenze').delete().eq('id', id);
+    if (error) throw error;
   }
 };
