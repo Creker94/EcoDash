@@ -1,12 +1,16 @@
 // ============================================================
-// EcoDash — bootstrap, auth, viste (Fasi 1–4: conti, movimenti,
-// grafici, scadenze, patrimonio)
+// EcoDash — bootstrap, auth, viste (Fasi 1–6: conti, movimenti,
+// grafici, scadenze, patrimonio, debiti, obiettivi/PAC)
 // ============================================================
 
-let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [], BENI = [];
+let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [], BENI = [], DEBITI = [], OBIETTIVI = [];
 let tipoMovimento = 'uscita';
 let tipoScadenza = 'uscita';
 let beneInEdit = null;
+let debitoInEdit = null;
+let obiettivoInEdit = null;
+let obiettivoVersa = null;
+let ordineDebiti = 'avalanche';
 const MESI_RIC = { mensile: 1, bimestrale: 2, trimestrale: 3, semestrale: 6, annuale: 12 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -44,8 +48,8 @@ async function boot() {
 }
 
 async function refresh() {
-  [CONTI, CATEGORIE, MOVIMENTI, SCADENZE, BENI] = await Promise.all([
-    DB.conti(), DB.categorie(), DB.movimenti(), DB.scadenze(), DB.beni()
+  [CONTI, CATEGORIE, MOVIMENTI, SCADENZE, BENI, DEBITI, OBIETTIVI] = await Promise.all([
+    DB.conti(), DB.categorie(), DB.movimenti(), DB.scadenze(), DB.beni(), DB.debiti(), DB.obiettivi()
   ]);
   renderDashboard();
   renderDashScadenze();
@@ -53,6 +57,8 @@ async function refresh() {
   renderMovimenti();
   renderScadenze();
   renderPatrimonio();
+  renderDebiti();
+  renderObiettivi();
   renderConti();
   fillSelects();
 }
@@ -131,6 +137,8 @@ function bindUI() {
   $$('[data-open="movimento"]').forEach(b => b.addEventListener('click', openMovimento));
   $$('[data-open="scadenza"]').forEach(b => b.addEventListener('click', openScadenza));
   $$('[data-open="bene"]').forEach(b => b.addEventListener('click', () => openBene(null)));
+  $$('[data-open="debito"]').forEach(b => b.addEventListener('click', () => openDebito(null)));
+  $$('[data-open="obiettivo"]').forEach(b => b.addEventListener('click', () => openObiettivo(null)));
   $$('[data-open="conto"]').forEach(b => b.addEventListener('click', () => {
     $('#modal-conto').hidden = false;
   }));
@@ -155,6 +163,13 @@ function bindUI() {
     tipoScadenza = b.dataset.tipo;
     $$('#sca-tipo .seg-btn').forEach(x => x.classList.toggle('active', x === b));
     fillCategoriaSelectScadenza();
+  }));
+
+  // Ordinamento debiti (avalanche / snowball)
+  $$('#deb-ordine .seg-btn').forEach(b => b.addEventListener('click', () => {
+    ordineDebiti = b.dataset.ord;
+    $$('#deb-ordine .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    renderDebiti();
   }));
 
   // Form movimento
@@ -235,6 +250,91 @@ function bindUI() {
     });
   });
 
+  // Form debito (nuovo o modifica)
+  $('#form-debito').addEventListener('submit', (e) => {
+    e.preventDefault();
+    withBusy($('#deb-salva'), async () => {
+      try {
+        const iniziale = Math.abs(parseFloat($('#deb-iniziale').value));
+        if (!iniziale) { toast('Inserisci l\'importo iniziale', 'error'); return; }
+        const resRaw = $('#deb-residuo').value;
+        const residuo = resRaw !== '' ? Math.abs(parseFloat(resRaw)) : iniziale;
+        const payload = {
+          nome: $('#deb-nome').value.trim(),
+          importo_iniziale: iniziale,
+          residuo,
+          tasso: $('#deb-tasso').value !== '' ? Math.abs(parseFloat($('#deb-tasso').value)) : null,
+          rata: $('#deb-rata').value !== '' ? Math.abs(parseFloat($('#deb-rata').value)) : null,
+          quota_capitale: $('#deb-quota').value !== '' ? Math.abs(parseFloat($('#deb-quota').value)) : null,
+          conto_id: $('#deb-conto').value,
+          categoria_id: $('#deb-categoria').value || null,
+          estinto: residuo <= 0
+        };
+        if (debitoInEdit) await DB.updDebito(debitoInEdit, payload);
+        else await DB.addDebito(payload);
+        $('#modal-debito').hidden = true;
+        toast('Salvato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nel salvataggio: riprova', 'error');
+      }
+    });
+  });
+
+  // Form obiettivo (nuovo o modifica)
+  $('#form-obiettivo').addEventListener('submit', (e) => {
+    e.preventDefault();
+    withBusy($('#ob-salva'), async () => {
+      try {
+        const target = Math.abs(parseFloat($('#ob-target').value));
+        if (!target) { toast('Inserisci il traguardo', 'error'); return; }
+        const payload = {
+          nome: $('#ob-nome').value.trim(),
+          target,
+          versato: $('#ob-versato').value !== '' ? Math.abs(parseFloat($('#ob-versato').value)) : 0,
+          rata_mensile: $('#ob-rata').value !== '' ? Math.abs(parseFloat($('#ob-rata').value)) : null,
+          conto_id: $('#ob-conto').value || null
+        };
+        if (obiettivoInEdit) await DB.updObiettivo(obiettivoInEdit, payload);
+        else await DB.addObiettivo(payload);
+        $('#modal-obiettivo').hidden = true;
+        toast('Salvato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nel salvataggio: riprova', 'error');
+      }
+    });
+  });
+
+  // Form versamento su obiettivo
+  $('#form-versa').addEventListener('submit', (e) => {
+    e.preventDefault();
+    withBusy($('#versa-btn'), async () => {
+      try {
+        const o = OBIETTIVI.find(x => x.id === obiettivoVersa);
+        if (!o) return;
+        const imp = Math.abs(parseFloat($('#versa-importo').value));
+        if (!imp) { toast('Inserisci un importo valido', 'error'); return; }
+        await DB.addMovimento({
+          conto_id: $('#versa-conto').value,
+          categoria_id: null,
+          importo: -imp,
+          descrizione: `Versamento ${o.nome}`,
+          data: oggiISO()
+        });
+        await DB.updObiettivo(o.id, { versato: Number(o.versato) + imp });
+        $('#modal-versa').hidden = true;
+        toast('Versato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nel versamento: riprova', 'error');
+      }
+    });
+  });
+
   // Form conto
   $('#form-conto').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -262,23 +362,17 @@ function bindUI() {
   $('#confirm-yes').addEventListener('click', () => closeConfirm(true));
 }
 
-function openMovimento() {
+function richiedeConto() {
   if (CONTI.length === 0) {
     toast('Crea prima un conto', 'error');
     $('#modal-conto').hidden = false;
-    return;
+    return true;
   }
-  $('#modal-movimento').hidden = false;
+  return false;
 }
 
-function openScadenza() {
-  if (CONTI.length === 0) {
-    toast('Crea prima un conto', 'error');
-    $('#modal-conto').hidden = false;
-    return;
-  }
-  $('#modal-scadenza').hidden = false;
-}
+function openMovimento() { if (!richiedeConto()) $('#modal-movimento').hidden = false; }
+function openScadenza() { if (!richiedeConto()) $('#modal-scadenza').hidden = false; }
 
 function openBene(bene) {
   beneInEdit = bene ? bene.id : null;
@@ -293,6 +387,48 @@ function openBene(bene) {
     $('#bene-stato').value = bene.venduto ? 'venduto' : 'attivo';
   }
   $('#modal-bene').hidden = false;
+}
+
+function openDebito(d) {
+  if (richiedeConto()) return;
+  debitoInEdit = d ? d.id : null;
+  $('#deb-title').textContent = d ? 'Modifica debito' : 'Nuovo debito';
+  $('#form-debito').reset();
+  if (d) {
+    $('#deb-nome').value = d.nome;
+    $('#deb-iniziale').value = Number(d.importo_iniziale);
+    $('#deb-residuo').value = Number(d.residuo);
+    $('#deb-tasso').value = d.tasso != null ? Number(d.tasso) : '';
+    $('#deb-rata').value = d.rata != null ? Number(d.rata) : '';
+    $('#deb-quota').value = d.quota_capitale != null ? Number(d.quota_capitale) : '';
+    if (d.conto_id) $('#deb-conto').value = d.conto_id;
+    $('#deb-categoria').value = d.categoria_id || '';
+  }
+  $('#modal-debito').hidden = false;
+}
+
+function openObiettivo(o) {
+  obiettivoInEdit = o ? o.id : null;
+  $('#ob-title').textContent = o ? 'Modifica obiettivo' : 'Nuovo obiettivo';
+  $('#form-obiettivo').reset();
+  if (o) {
+    $('#ob-nome').value = o.nome;
+    $('#ob-target').value = Number(o.target);
+    $('#ob-versato').value = Number(o.versato);
+    $('#ob-rata').value = o.rata_mensile != null ? Number(o.rata_mensile) : '';
+    $('#ob-conto').value = o.conto_id || '';
+  }
+  $('#modal-obiettivo').hidden = false;
+}
+
+function openVersa(o) {
+  if (richiedeConto()) return;
+  obiettivoVersa = o.id;
+  $('#versa-title').textContent = `Versa \u00b7 ${o.nome}`;
+  $('#form-versa').reset();
+  if (o.rata_mensile) $('#versa-importo').value = Number(o.rata_mensile);
+  if (o.conto_id) $('#versa-conto').value = o.conto_id;
+  $('#modal-versa').hidden = false;
 }
 
 // ---------- Conferma (z 4000) ----------
@@ -315,6 +451,12 @@ function fillSelects() {
   const opzConti = CONTI.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
   $('#mov-conto').innerHTML = opzConti;
   $('#sca-conto').innerHTML = opzConti;
+  $('#deb-conto').innerHTML = opzConti;
+  $('#versa-conto').innerHTML = opzConti;
+  $('#ob-conto').innerHTML = '<option value="">\u2014 nessuno \u2014</option>' + opzConti;
+  const uscite = CATEGORIE.filter(c => c.tipo === 'uscita')
+    .map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  $('#deb-categoria').innerHTML = '<option value="">\u2014 nessuna \u2014</option>' + uscite;
   fillCategoriaSelect();
   fillCategoriaSelectScadenza();
 }
@@ -338,6 +480,9 @@ function saldoConto(id) {
 }
 function saldoTotale() {
   return CONTI.reduce((s, c) => s + saldoConto(c.id), 0);
+}
+function accantonatoTotale() {
+  return OBIETTIVI.reduce((s, o) => s + Number(o.versato), 0);
 }
 
 // Serie giornaliera del saldo totale (ultimi N giorni)
@@ -545,12 +690,15 @@ function renderPatrimonio() {
   const attivi = BENI.filter(b => !b.venduto);
   const liquidita = saldoTotale();
   const valBeni = attivi.reduce((s, b) => s + Number(b.valore_stimato), 0);
+  const accantonato = accantonatoTotale();
 
-  $('#pat-totale').textContent = fmtEUR.format(liquidita + valBeni);
+  $('#pat-totale').textContent = fmtEUR.format(liquidita + valBeni + accantonato);
   $('#pat-liquidita').textContent = fmtEUR.format(liquidita);
   $('#pat-liquidita-sub').textContent = CONTI.length + ' conti';
   $('#pat-beni').textContent = fmtEUR.format(valBeni);
   $('#pat-beni-sub').textContent = attivi.length + ' beni in portafoglio';
+  $('#pat-accantonato').textContent = fmtEUR.format(accantonato);
+  $('#pat-accantonato-sub').textContent = OBIETTIVI.length + ' obiettivi';
 
   const g = $('#beni-grid');
   g.innerHTML = BENI.length
@@ -577,15 +725,185 @@ function renderPatrimonio() {
   }));
 }
 
+// ---------- Debiti ----------
+function cardDebito(d, prio) {
+  const pct = Math.min(100, Math.max(0, Math.round((1 - Number(d.residuo) / Number(d.importo_iniziale)) * 100)));
+  const tassoB = d.tasso != null ? `<span class="badge grey">${('' + Number(d.tasso)).replace('.', ',')}%</span>` : '';
+  const prioB = prio ? '<span class="badge orange">priorit\u00e0</span>' : '';
+  const estB = d.estinto ? '<span class="badge grey">estinto</span>' : '';
+  const rataTxt = d.rata != null
+    ? ` \u00b7 rata <span class="num amount">${fmtEUR.format(d.rata)}</span>`
+    : '';
+  const chk = (!d.estinto && d.rata != null)
+    ? `<button class="btn btn-ghost btn-sm" data-ratadeb="${d.id}" title="Registra rata">\u2713</button>`
+    : '';
+  return `
+    <div class="stat-card">
+      <div class="bene-head">
+        <div class="stat-label">${esc(d.nome)}</div>
+        <div class="bene-actions">
+          ${chk}
+          <button class="btn btn-ghost btn-sm" data-editdeb="${d.id}" title="Modifica">\u270e</button>
+          <button class="btn btn-ghost btn-sm" data-deldeb="${d.id}" title="Elimina">\u2715</button>
+        </div>
+      </div>
+      <div class="stat-card-val ${d.estinto ? 'stat-grey' : 'stat-red'} amount">${fmtEUR.format(d.residuo)}</div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="stat-sub">${fmtNum.format(pct)}% rimborsato \u00b7 iniziale <span class="num amount">${fmtEUR.format(d.importo_iniziale)}</span>${rataTxt}</div>
+      <div class="stat-sub">${tassoB} ${prioB} ${estB}</div>
+    </div>`;
+}
+
+function renderDebiti() {
+  const attivi = DEBITI.filter(d => !d.estinto);
+  const residuoTot = attivi.reduce((s, d) => s + Number(d.residuo), 0);
+  const rataTot = attivi.reduce((s, d) => s + Number(d.rata || 0), 0);
+
+  $('#deb-stat-residuo').textContent = fmtEUR.format(residuoTot);
+  $('#deb-stat-residuo-sub').textContent = attivi.length + ' debiti attivi';
+  $('#deb-stat-rate').textContent = fmtEUR.format(rataTot);
+
+  const ord = [...DEBITI].sort((a, b) => {
+    if (a.estinto !== b.estinto) return a.estinto ? 1 : -1;
+    if (ordineDebiti === 'avalanche') return (Number(b.tasso) || 0) - (Number(a.tasso) || 0);
+    return Number(a.residuo) - Number(b.residuo);
+  });
+  const prioId = ord.find(d => !d.estinto)?.id;
+
+  const g = $('#debiti-grid');
+  g.innerHTML = ord.length
+    ? ord.map(d => cardDebito(d, d.id === prioId && ord.filter(x => !x.estinto).length > 1)).join('')
+    : '<div class="empty">Nessun debito registrato \u2014 ottima notizia. Se ne hai, aggiungili con "+ Nuovo debito"</div>';
+
+  g.querySelectorAll('[data-ratadeb]').forEach(b => b.addEventListener('click', async () => {
+    const d = DEBITI.find(x => x.id === b.dataset.ratadeb);
+    if (!d) return;
+    const conto = CONTI.find(c => c.id === d.conto_id);
+    if (!conto) { toast('Assegna un conto valido al debito (\u270e)', 'error'); return; }
+    const ok = await confirmAsk(
+      `Registrare la rata di ${fmtEUR.format(d.rata)} per "${d.nome}" su ${conto.nome}?`,
+      'Registra', false);
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.addMovimento({
+          conto_id: d.conto_id,
+          categoria_id: d.categoria_id || null,
+          importo: -Math.abs(Number(d.rata)),
+          descrizione: `Rata ${d.nome}`,
+          data: oggiISO()
+        });
+        const scala = d.quota_capitale != null ? Number(d.quota_capitale) : Number(d.rata);
+        const nuovo = Math.max(0, Number(d.residuo) - scala);
+        await DB.updDebito(d.id, { residuo: nuovo, estinto: nuovo <= 0 });
+        toast(nuovo <= 0 ? 'Registrata \u2014 debito estinto!' : 'Registrata', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nella registrazione: riprova', 'error');
+      }
+    });
+  }));
+
+  g.querySelectorAll('[data-editdeb]').forEach(b => b.addEventListener('click', () => {
+    const d = DEBITI.find(x => x.id === b.dataset.editdeb);
+    if (d) openDebito(d);
+  }));
+  g.querySelectorAll('[data-deldeb]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmAsk('Eliminare definitivamente questo debito?');
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.delDebito(b.dataset.deldeb);
+        toast('Eliminato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nell\'eliminazione: riprova', 'error');
+      }
+    });
+  }));
+}
+
+// ---------- Obiettivi ----------
+function cardObiettivo(o) {
+  const versato = Number(o.versato), target = Number(o.target);
+  const pct = Math.min(100, Math.round(versato / target * 100));
+  const raggiunto = versato >= target;
+  let proiezione = '';
+  if (!raggiunto && o.rata_mensile != null && Number(o.rata_mensile) > 0) {
+    const mesi = Math.ceil((target - versato) / Number(o.rata_mensile));
+    proiezione = `<div class="stat-sub">al ritmo di <span class="num amount">${fmtEUR.format(o.rata_mensile)}</span>/mese \u00b7 traguardo \u2248 ${dataIT(addMesi(oggiISO(), mesi))}</div>`;
+  }
+  const badge = raggiunto ? '<span class="badge green">raggiunto</span>' : '';
+  return `
+    <div class="stat-card">
+      <div class="bene-head">
+        <div class="stat-label">${esc(o.nome)}</div>
+        <div class="bene-actions">
+          <button class="btn btn-ghost btn-sm" data-versa="${o.id}" title="Versa">+</button>
+          <button class="btn btn-ghost btn-sm" data-editob="${o.id}" title="Modifica">\u270e</button>
+          <button class="btn btn-ghost btn-sm" data-delob="${o.id}" title="Elimina">\u2715</button>
+        </div>
+      </div>
+      <div class="stat-card-val stat-accent amount">${fmtEUR.format(versato)}</div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="stat-sub">${fmtNum.format(pct)}% di <span class="num amount">${fmtEUR.format(target)}</span> ${badge}</div>
+      ${proiezione}
+    </div>`;
+}
+
+function renderObiettivi() {
+  const versatoTot = accantonatoTotale();
+  const targetTot = OBIETTIVI.reduce((s, o) => s + Number(o.target), 0);
+  const pctAll = targetTot > 0 ? Math.min(100, Math.round(versatoTot / targetTot * 100)) : 0;
+
+  $('#ob-stat-versato').textContent = fmtEUR.format(versatoTot);
+  $('#ob-stat-versato-sub').textContent = OBIETTIVI.length + ' obiettivi';
+  $('#ob-stat-target').textContent = fmtEUR.format(targetTot);
+  $('#ob-stat-target-sub').textContent = fmtNum.format(pctAll) + '% completato';
+
+  const g = $('#obiettivi-grid');
+  g.innerHTML = OBIETTIVI.length
+    ? OBIETTIVI.map(cardObiettivo).join('')
+    : '<div class="empty">Nessun obiettivo: crea un fondo emergenza o un PAC con "+ Nuovo obiettivo"</div>';
+
+  g.querySelectorAll('[data-versa]').forEach(b => b.addEventListener('click', () => {
+    const o = OBIETTIVI.find(x => x.id === b.dataset.versa);
+    if (o) openVersa(o);
+  }));
+  g.querySelectorAll('[data-editob]').forEach(b => b.addEventListener('click', () => {
+    const o = OBIETTIVI.find(x => x.id === b.dataset.editob);
+    if (o) openObiettivo(o);
+  }));
+  g.querySelectorAll('[data-delob]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmAsk('Eliminare definitivamente questo obiettivo?');
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.delObiettivo(b.dataset.delob);
+        toast('Eliminato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nell\'eliminazione: riprova', 'error');
+      }
+    });
+  }));
+}
+
 // ---------- Render ----------
 function renderDashboard() {
   $('#hero-saldo').textContent = fmtEUR.format(saldoTotale());
 
   const attivi = BENI.filter(b => !b.venduto);
+  const accantonato = accantonatoTotale();
   const heroPat = $('#hero-patrimonio');
-  if (attivi.length) {
-    const totale = saldoTotale() + attivi.reduce((s, b) => s + Number(b.valore_stimato), 0);
-    heroPat.innerHTML = `Patrimonio con beni: <span class="num amount">${fmtEUR.format(totale)}</span>`;
+  if (attivi.length || accantonato > 0) {
+    const totale = saldoTotale()
+      + attivi.reduce((s, b) => s + Number(b.valore_stimato), 0)
+      + accantonato;
+    heroPat.innerHTML = `Patrimonio complessivo: <span class="num amount">${fmtEUR.format(totale)}</span>`;
     heroPat.hidden = false;
   } else {
     heroPat.hidden = true;
