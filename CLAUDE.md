@@ -19,11 +19,12 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 - `categorie` — nome, tipo (entrata/uscita), colore
 - `movimenti` — conto_id, categoria_id, **importo numeric(12,2) con segno** (entrate +, uscite −), descrizione, data (`date`), note
 - `scadenze` — nome, importo con segno, data_scadenza, ricorrenza (nessuna/mensile/bimestrale/trimestrale/semestrale/annuale), conto_id, categoria_id, archiviata. **Modello "prossima occorrenza"**: la registrazione crea un movimento e fa avanzare la data (o archivia se una tantum)
+- `beni` — nome, tipo (orologio/immobile/veicolo/oggetto/altro), valore_stimato, prezzo_acquisto (per delta guadagno/perdita), data_acquisto, venduto. I venduti sono esclusi dai totali e resi in grigio `#9ca3af`
 - Tutte con `user_id default auth.uid()` + policy RLS `user_id = auth.uid()`
 
 ## Regole non negoziabili (lezioni GoldGest)
 
-1. **Un solo formatter monetario** `fmtEUR` in `js/utils.js` — mai duplicarlo (`fmtNum` è solo per i tick di scala dei grafici, non è monetario)
+1. **Un solo formatter monetario** `fmtEUR` in `js/utils.js` — mai duplicarlo (`fmtNum` è solo per tick di scala e percentuali, non è monetario)
 2. **Una sola casa per le utility data** in `js/utils.js`: `oggiISO()`, `addMesi()`, `dataIT()` — mai `toISOString().slice(0,10)`
 3. **`withBusy(btn, fn)` su ogni scrittura** — anti doppio-tap, previene record duplicati
 4. **Cifre tabulari** su ogni numero incolonnato
@@ -37,10 +38,11 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 ## Convenzioni
 
 - Nomi tabelle/colonne DB: italiano, snake_case
-- Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono Estoril con glow)
+- Componente-firma: **saldo hero a display** (pannello `--surface2` con ombra inset + numero JetBrains Mono Estoril con glow); sotto, riga "Patrimonio con beni" quando esistono beni attivi
 - Modalità riservata: `body.privacy` → `blur(6px)` su `.amount` (vale anche per i valori nei tooltip dei grafici)
 - Grafici: **SVG vanilla in `js/charts.js`** (niente librerie), regole in STYLE_GUIDE §9
 - Stati scadenze: Scaduta = rosso · In arrivo (≤30 gg) = arancio `#f59e0b` · Programmata = `--blue`
+- Patrimonio totale = liquidità conti + valore beni attivi; il bene si modifica (✎) invece di eliminare/ricreare, la vendita è uno stato
 - Chiavi in `js/config.js`: URL + publishable key (sicure lato client: la protezione è la RLS)
 - Testo utente in `innerHTML` sempre passato da `esc()`
 - `--blue` semantico (ricorrenti/programmate) ≠ accent: se in uso diventa ambiguo, valutare colore alternativo (vedi nota in STYLE_GUIDE §2)
@@ -50,6 +52,6 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 1. ✅ Conti + Movimenti (Fase 1)
 2. ✅ Dashboard con grafici — andamento saldo, entrate/uscite 6 mesi, uscite per categoria (Fase 2)
 3. ✅ Scadenze e ricorrenti — stati colorati, registrazione con avanzamento automatico (Fase 3)
-4. Patrimonio (beni: orologi, ecc.)
+4. ✅ Patrimonio — beni con valore stimato, delta su acquisto, stato venduto (Fase 4)
 5. Debiti e piani di rientro
 6. PAC e obiettivi
