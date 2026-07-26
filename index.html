@@ -87,8 +87,8 @@
 
       <div class="card">
         <div class="card-head">
-          <h2>Prossime scadenze</h2>
-          <button class="btn btn-ghost btn-sm" data-view-go="scadenze">Tutte</button>
+          <h2>Prossimi impegni</h2>
+          <button class="btn btn-ghost btn-sm" data-view-go="scadenze">Scadenze</button>
         </div>
         <div class="table-wrap">
           <table id="tbl-dash-scadenze">
@@ -216,9 +216,14 @@
           <div class="stat-sub" id="deb-stat-residuo-sub"></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Rate mensili</div>
+          <div class="stat-label">Impegno · mese</div>
           <div class="stat-card-val amount" id="deb-stat-rate">—</div>
-          <div class="stat-sub">impegno mensile totale</div>
+          <div class="stat-sub">equivalente mensile (le rate non mensili sono riproporzionate)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Prossima rata</div>
+          <div class="stat-card-val amount" id="deb-stat-prossima">—</div>
+          <div class="stat-sub" id="deb-stat-prossima-sub"></div>
         </div>
       </div>
       <div class="seg" id="deb-ordine">
@@ -398,8 +403,20 @@
           <label class="fld"><span>Tasso annuo (%)</span>
             <input type="number" step="0.01" min="0" id="deb-tasso" inputmode="decimal" placeholder="per l'avalanche">
           </label>
-          <label class="fld"><span>Rata mensile (€)</span>
+          <label class="fld"><span>Rata (€)</span>
             <input type="number" step="0.01" min="0" id="deb-rata" inputmode="decimal" placeholder="0,00">
+          </label>
+          <label class="fld"><span>Periodicità</span>
+            <select id="deb-periodicita">
+              <option value="mensile">Mensile</option>
+              <option value="bimestrale">Bimestrale</option>
+              <option value="trimestrale">Trimestrale</option>
+              <option value="semestrale">Semestrale</option>
+              <option value="annuale">Annuale</option>
+            </select>
+          </label>
+          <label class="fld"><span>Prossima rata</span>
+            <input type="date" id="deb-prossima">
           </label>
           <label class="fld"><span>Quota capitale (€)</span>
             <input type="number" step="0.01" min="0" id="deb-quota" inputmode="decimal" placeholder="vuoto = intera rata">
@@ -407,7 +424,7 @@
           <label class="fld"><span>Conto di pagamento</span>
             <select id="deb-conto" required></select>
           </label>
-          <label class="fld fld-full"><span>Categoria</span>
+          <label class="fld"><span>Categoria</span>
             <select id="deb-categoria"></select>
           </label>
         </div>
