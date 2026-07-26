@@ -4,12 +4,18 @@ Istruzioni operative per lavorare su questo progetto. **La fonte di verità per 
 
 ## Stato — aggiornato al 26/07/2026
 
-- **Roadmap completata: tutte e 6 le fasi sono in produzione** su https://ecodash-app.netlify.app, più la **Fase 5.1** (periodicità e prossima rata sui debiti)
+- **Roadmap completata: tutte e 6 le fasi sono in produzione** su https://ecodash-app.netlify.app, più la **5.1** (periodicità e prossima rata sui debiti) e la **5.2** (ricorrenze ancorate a un giorno fisso)
 - Ogni push su `main` va online automaticamente (statico, nessun build step)
 - Connettori necessari per operare: **GitHub** (`Creker94/EcoDash`), **Supabase** (ref `zznyhifatcpctkpeubtj`), **Netlify** (progetto `ecodash-app`, siteId `1aef73da-701a-4e01-9472-723d9988ce99`)
 - Lo schema DB si modifica **solo via migrazioni Supabase** (`apply_migration`), mai a mano
-- **Dati reali caricati**: conto Banco BPM, 5 debiti (2 mutui BPM, 2 rateazioni Agenzia Entrate, 1 privato), 1 scadenza annuale (premio assicurativo). Il `saldo_iniziale` del conto è ancora a 0: va impostato al saldo reale, altrimenti hero e grafici partono sbagliati.
-- Prossime evoluzioni candidate: in fondo a questo file
+
+### Dati reali già caricati
+
+- **Conto**: Banco BPM c/c 00227227. Il `saldo_iniziale` è ancora **0**: va impostato al saldo reale, altrimenti hero, grafico andamento e patrimonio partono sbagliati.
+- **Debiti** (residuo 161.105,47 €): 2 mutui Banco BPM, 2 rateazioni Agenzia Entrate (trimestrali, 3,5%), 1 debito privato verso Immobiliare Nano (senza interessi, fine 15/12/2027)
+- **Entrate fisse** (6.223 €/mese): stipendio 3.000 il 30; affitti Lavanderia 1.723 e Locali Via Ariosto 1.000 il 15; Box 500 il 30
+- **Uscite ricorrenti**: INPS gestione commercianti 1.137,50 a trimestre (4.550/anno, ancora al giorno 16 di feb/mag/ago/nov con slittamento al primo giorno lavorativo); premio assicurativo 433,05 annuo il 25/03
+- **Ancora da inserire**: IRPEF sugli affitti (arriverà una dichiarazione dei redditi da cui ricavare le imposte), IMU, TARI, utenze, beni (orologi)
 
 ## Cos'è
 
@@ -27,16 +33,16 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 - `conti` — nome, tipo, saldo_iniziale, archiviato
 - `categorie` — nome, tipo (entrata/uscita), colore
 - `movimenti` — conto_id, categoria_id, **importo numeric(12,2) con segno** (entrate +, uscite −), descrizione, data, note
-- `scadenze` — modello "prossima occorrenza": la registrazione crea un movimento e fa avanzare la data (o archivia se una tantum)
+- `scadenze` — modello "prossima occorrenza": la registrazione crea un movimento e fa avanzare la data (o archivia se una tantum). **giorno_ancora** (1–31) = giorno fisso della ricorrenza
 - `beni` — valore_stimato, prezzo_acquisto (delta), venduto (grigio, fuori dai totali)
-- `debiti` — importo_iniziale, residuo, tasso (per avalanche), rata, **periodicita** (mensile→annuale), **prossima_rata** (date), **quota_capitale** (se valorizzata, il residuo scende solo di quella; il movimento resta l'intera rata — corretto per i mutui), estinto
+- `debiti` — importo_iniziale, residuo, tasso (per avalanche), rata, **periodicita** (mensile→annuale), **prossima_rata**, **giorno_ancora**, **quota_capitale** (se valorizzata, il residuo scende solo di quella; il movimento resta l'intera rata — corretto per i mutui), estinto
 - `obiettivi` — target, versato, rata_mensile (per la proiezione), conto_id preferito, archiviato
 - Tutte con `user_id default auth.uid()` + policy RLS `user_id = auth.uid()`
 
 ## Regole non negoziabili (lezioni GoldGest)
 
 1. **Un solo formatter monetario** `fmtEUR` in `js/utils.js` — mai duplicarlo (`fmtNum` è solo per tick di scala e percentuali, non è monetario)
-2. **Una sola casa per le utility data** in `js/utils.js`: `oggiISO()`, `addMesi()`, `dataIT()` — mai `toISOString().slice(0,10)`
+2. **Una sola casa per le utility data** in `js/utils.js`: `oggiISO()`, `addMesi()`, `prossimaData()`, `giornoDi()`, `dataIT()` — mai `toISOString().slice(0,10)`
 3. **`withBusy(btn, fn)` su ogni scrittura** — anti doppio-tap, previene record duplicati
 4. **Cifre tabulari** su ogni numero incolonnato
 5. **z-index solo dalla scala** documentata in `docs/STYLE_GUIDE.md` §5 — mai inventati
@@ -46,6 +52,7 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 9. **Identità Estoril Blue**: accent `#3d7dd8` su tema scuro (glifo NERO sull'accent), `#1f5cb0` su tema chiaro (glifo BIANCO sull'accent). Mai invertire i glifi tra i temi.
 10. Mai `#000`/`#fff` come sfondi
 11. **Safe area su ogni colonna che tocca il bordo**: `.main`, `.sidebar` e gli overlay hanno `env(safe-area-inset-top/bottom)` nel padding; la striscia fissa a z 900 (`body::before`) copre la Dynamic Island sopra il contenuto ma non sopra il rail
+12. **Le ricorrenze avanzano con `prossimaData(iso, mesi, giorno_ancora)`, mai con `addMesi`.** `addMesi` tronca il giorno al mese di arrivo e passando da febbraio la deriva è permanente (30/01 → 28/02 → 28/03). `addMesi` resta solo per proiezioni una tantum (traguardo obiettivi).
 
 ## Convenzioni
 
@@ -54,11 +61,11 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 - Modalità riservata: `body.privacy` → `blur(6px)` su `.amount` (anche tooltip grafici)
 - Grafici: **SVG vanilla in `js/charts.js`** (niente librerie), regole in STYLE_GUIDE §9
 - Stati data (`statoData`, unica fonte per scadenze e rate): Scaduta = rosso · In arrivo (≤30 gg) = arancio `#f59e0b` · Programmata = `--blue`
-- `addMesi` è **ancorata a fine mese**: se la data di partenza è l'ultimo giorno del mese, il risultato resta l'ultimo giorno (31/07 → 31/08 → 30/09 → 31/10). Senza questa regola le rate del 31 scivolavano al 30 e non risalivano più.
+- `giorno_ancora` si ricava dalla data scelta nel form (`giornoDi`), ma può differire: l'INPS ha scadenza slittata al 20/08 e ancora 16, così le rate successive tornano al 16. In modifica di un debito l'ancora si conserva se la data non è cambiata.
 - Debiti: ordinamento **avalanche** (tasso desc) o **snowball** (residuo asc); badge "priorità" arancio sul primo attivo; barra `.prog` = % rimborsato in accent
-- Debiti con rata non mensile: la card "Impegno · mese" usa `rataMensileEquiv()` (rata ÷ mesi di periodicità), così una trimestrale non viene contata come mensile. Registrare la rata scala `quota_capitale` **e** fa avanzare `prossima_rata` di `MESI_RIC[periodicita]`.
+- Debiti con rata non mensile: la card "Impegno · mese" usa `rataMensileEquiv()` (rata ÷ mesi di periodicità), così una trimestrale non viene contata come mensile. Registrare la rata scala `quota_capitale` **e** fa avanzare `prossima_rata`.
 - Dashboard "Prossimi impegni" = scadenze **+** rate dei debiti (`prossimiImpegni()`), ordinate per data, le rate con badge accent. Le rate NON stanno anche in `scadenze`: duplicarle significherebbe registrare due volte lo stesso movimento.
-- Obiettivi: "Versa" crea movimento in uscita dal conto + incrementa `versato` (liquidità ↓, accantonato ↑, patrimonio coerente); proiezione traguardo da `rata_mensile` via `addMesi`
+- Obiettivi: "Versa" crea movimento in uscita dal conto + incrementa `versato` (liquidità ↓, accantonato ↑, patrimonio coerente); proiezione traguardo da `rata_mensile`
 - Chiavi in `js/config.js`: URL + publishable key (sicure lato client: la protezione è la RLS)
 - Testo utente in `innerHTML` sempre passato da `esc()`
 - `--blue` semantico ≠ accent: se in uso diventa ambiguo, valutare colore alternativo (STYLE_GUIDE §2)
@@ -71,14 +78,17 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 4. ✅ Patrimonio (Fase 4)
 5. ✅ Debiti — avalanche/snowball, rata con quota capitale (Fase 5)
    - ✅ 5.1 — periodicità, prossima rata che avanza, piano di rientro stimato, impegni in dashboard
+   - ✅ 5.2 — `giorno_ancora` su scadenze e debiti, `prossimaData()` al posto di `addMesi` nelle ricorrenze
 6. ✅ Obiettivi e PAC — versamenti, proiezioni (Fase 6)
 
 **Roadmap completata.** Prossime evoluzioni candidate, in ordine di valore stimato:
 
-1. **Trasferimenti tra conti** (oggi un giroconto richiede due movimenti manuali)
-2. **Service worker + offline** seguendo le regole §8 della guida (cache solo `res.ok`, bump versione+cache insieme, barra aggiornamento a z 6000)
-3. **Piano di ammortamento reale** per i mutui (tabella `rate`): oggi `quota_capitale` è fissa, mentre nei mutui cresce ogni mese — le "rate residue" sono quindi una stima per eccesso
-4. **Storico valutazioni beni** (tabella `beni_valori`) per il grafico del patrimonio nel tempo
-5. **Export dati** (CSV) — ricordare la regola §8.5: le scritture su DB si completano prima, l'export è sempre l'ultima operazione
-6. **Icone PWA** nel manifest + notifiche per le scadenze in arrivo
-7. Modifica movimenti e scadenze esistenti (oggi solo elimina/ricrea)
+1. **Modulo fiscale** dalla dichiarazione dei redditi: IRPEF sugli affitti, acconti e saldo, con le scadenze di giugno/luglio e novembre
+2. **Trasferimenti tra conti** (oggi un giroconto richiede due movimenti manuali)
+3. **Service worker + offline** seguendo le regole §8 della guida (cache solo `res.ok`, bump versione+cache insieme, barra aggiornamento a z 6000)
+4. **Piano di ammortamento reale** per i mutui (tabella `rate`): oggi `quota_capitale` è fissa, mentre nei mutui cresce ogni mese — le "rate residue" sono quindi una stima per eccesso
+5. **Slittamento ai giorni lavorativi** per le scadenze fiscali (l'INPS slitta al primo giorno lavorativo: oggi la data va corretta a mano)
+6. **Storico valutazioni beni** (tabella `beni_valori`) per il grafico del patrimonio nel tempo
+7. **Export dati** (CSV) — ricordare la regola §8.5: le scritture su DB si completano prima, l'export è sempre l'ultima operazione
+8. **Icone PWA** nel manifest + notifiche per le scadenze in arrivo
+9. Modifica movimenti e scadenze esistenti (oggi solo elimina/ricrea)
