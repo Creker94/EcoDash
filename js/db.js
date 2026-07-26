@@ -65,5 +65,27 @@ const DB = {
   async delScadenza(id) {
     const { error } = await sb.from('scadenze').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  async beni() {
+    const { data, error } = await sb.from('beni')
+      .select('*').order('venduto').order('created_at');
+    if (error) throw error;
+    return data;
+  },
+
+  async addBene(p) {
+    const { error } = await sb.from('beni').insert(p);
+    if (error) throw error;
+  },
+
+  async updBene(id, patch) {
+    const { error } = await sb.from('beni').update(patch).eq('id', id);
+    if (error) throw error;
+  },
+
+  async delBene(id) {
+    const { error } = await sb.from('beni').delete().eq('id', id);
+    if (error) throw error;
   }
 };

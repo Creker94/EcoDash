@@ -1,11 +1,12 @@
 // ============================================================
-// EcoDash — bootstrap, auth, viste (Fasi 1–3: conti, movimenti,
-// grafici, scadenze e ricorrenti)
+// EcoDash — bootstrap, auth, viste (Fasi 1–4: conti, movimenti,
+// grafici, scadenze, patrimonio)
 // ============================================================
 
-let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [];
+let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [], BENI = [];
 let tipoMovimento = 'uscita';
 let tipoScadenza = 'uscita';
+let beneInEdit = null;
 const MESI_RIC = { mensile: 1, bimestrale: 2, trimestrale: 3, semestrale: 6, annuale: 12 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -43,14 +44,15 @@ async function boot() {
 }
 
 async function refresh() {
-  [CONTI, CATEGORIE, MOVIMENTI, SCADENZE] = await Promise.all([
-    DB.conti(), DB.categorie(), DB.movimenti(), DB.scadenze()
+  [CONTI, CATEGORIE, MOVIMENTI, SCADENZE, BENI] = await Promise.all([
+    DB.conti(), DB.categorie(), DB.movimenti(), DB.scadenze(), DB.beni()
   ]);
   renderDashboard();
   renderDashScadenze();
   renderCharts();
   renderMovimenti();
   renderScadenze();
+  renderPatrimonio();
   renderConti();
   fillSelects();
 }
@@ -128,6 +130,7 @@ function bindUI() {
   // Apertura modali
   $$('[data-open="movimento"]').forEach(b => b.addEventListener('click', openMovimento));
   $$('[data-open="scadenza"]').forEach(b => b.addEventListener('click', openScadenza));
+  $$('[data-open="bene"]').forEach(b => b.addEventListener('click', () => openBene(null)));
   $$('[data-open="conto"]').forEach(b => b.addEventListener('click', () => {
     $('#modal-conto').hidden = false;
   }));
@@ -207,6 +210,31 @@ function bindUI() {
     });
   });
 
+  // Form bene (nuovo o modifica)
+  $('#form-bene').addEventListener('submit', (e) => {
+    e.preventDefault();
+    withBusy($('#bene-salva'), async () => {
+      try {
+        const payload = {
+          nome: $('#bene-nome').value.trim(),
+          tipo: $('#bene-tipo').value,
+          valore_stimato: Math.abs(parseFloat($('#bene-valore').value)) || 0,
+          prezzo_acquisto: $('#bene-prezzo').value !== '' ? Math.abs(parseFloat($('#bene-prezzo').value)) : null,
+          data_acquisto: $('#bene-data').value || null,
+          venduto: $('#bene-stato').value === 'venduto'
+        };
+        if (beneInEdit) await DB.updBene(beneInEdit, payload);
+        else await DB.addBene(payload);
+        $('#modal-bene').hidden = true;
+        toast('Salvato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nel salvataggio: riprova', 'error');
+      }
+    });
+  });
+
   // Form conto
   $('#form-conto').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -250,6 +278,21 @@ function openScadenza() {
     return;
   }
   $('#modal-scadenza').hidden = false;
+}
+
+function openBene(bene) {
+  beneInEdit = bene ? bene.id : null;
+  $('#bene-title').textContent = bene ? 'Modifica bene' : 'Nuovo bene';
+  $('#form-bene').reset();
+  if (bene) {
+    $('#bene-nome').value = bene.nome;
+    $('#bene-tipo').value = bene.tipo;
+    $('#bene-valore').value = Number(bene.valore_stimato);
+    $('#bene-prezzo').value = bene.prezzo_acquisto != null ? Number(bene.prezzo_acquisto) : '';
+    $('#bene-data').value = bene.data_acquisto || '';
+    $('#bene-stato').value = bene.venduto ? 'venduto' : 'attivo';
+  }
+  $('#modal-bene').hidden = false;
 }
 
 // ---------- Conferma (z 4000) ----------
@@ -472,9 +515,81 @@ function renderDashScadenze() {
     : '<tr><td colspan="4" class="empty">Nessuna scadenza in programma</td></tr>';
 }
 
+// ---------- Patrimonio ----------
+function cardBene(b) {
+  const val = Number(b.valore_stimato);
+  let delta = '';
+  if (!b.venduto && b.prezzo_acquisto != null && Number(b.prezzo_acquisto) > 0) {
+    const diff = val - Number(b.prezzo_acquisto);
+    const pct = Math.round(diff / Number(b.prezzo_acquisto) * 100);
+    const cls = diff >= 0 ? 'pos' : 'neg';
+    const segno = diff > 0 ? '+' : '';
+    delta = `<span class="num amount ${cls}">${segno}${fmtEUR.format(diff)} · ${segno}${fmtNum.format(pct)}%</span>`;
+  }
+  const stato = b.venduto ? '<span class="badge grey">venduto</span>' : '';
+  return `
+    <div class="stat-card">
+      <div class="bene-head">
+        <div class="stat-label">${esc(b.nome)}</div>
+        <div class="bene-actions">
+          <button class="btn btn-ghost btn-sm" data-editbene="${b.id}" title="Modifica">\u270e</button>
+          <button class="btn btn-ghost btn-sm" data-delbene="${b.id}" title="Elimina">\u2715</button>
+        </div>
+      </div>
+      <div class="stat-card-val ${b.venduto ? 'stat-grey' : 'stat-accent'} amount">${fmtEUR.format(val)}</div>
+      <div class="stat-sub"><span class="badge grey">${esc(b.tipo)}</span> ${stato} ${delta}</div>
+    </div>`;
+}
+
+function renderPatrimonio() {
+  const attivi = BENI.filter(b => !b.venduto);
+  const liquidita = saldoTotale();
+  const valBeni = attivi.reduce((s, b) => s + Number(b.valore_stimato), 0);
+
+  $('#pat-totale').textContent = fmtEUR.format(liquidita + valBeni);
+  $('#pat-liquidita').textContent = fmtEUR.format(liquidita);
+  $('#pat-liquidita-sub').textContent = CONTI.length + ' conti';
+  $('#pat-beni').textContent = fmtEUR.format(valBeni);
+  $('#pat-beni-sub').textContent = attivi.length + ' beni in portafoglio';
+
+  const g = $('#beni-grid');
+  g.innerHTML = BENI.length
+    ? BENI.map(cardBene).join('')
+    : '<div class="empty">Nessun bene: aggiungi orologi, immobili e oggetti di valore con "+ Nuovo bene"</div>';
+
+  g.querySelectorAll('[data-editbene]').forEach(b => b.addEventListener('click', () => {
+    const bene = BENI.find(x => x.id === b.dataset.editbene);
+    if (bene) openBene(bene);
+  }));
+  g.querySelectorAll('[data-delbene]').forEach(b => b.addEventListener('click', async () => {
+    const ok = await confirmAsk('Eliminare definitivamente questo bene?');
+    if (!ok) return;
+    withBusy(b, async () => {
+      try {
+        await DB.delBene(b.dataset.delbene);
+        toast('Eliminato', 'success');
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast('Errore nell\'eliminazione: riprova', 'error');
+      }
+    });
+  }));
+}
+
 // ---------- Render ----------
 function renderDashboard() {
   $('#hero-saldo').textContent = fmtEUR.format(saldoTotale());
+
+  const attivi = BENI.filter(b => !b.venduto);
+  const heroPat = $('#hero-patrimonio');
+  if (attivi.length) {
+    const totale = saldoTotale() + attivi.reduce((s, b) => s + Number(b.valore_stimato), 0);
+    heroPat.innerHTML = `Patrimonio con beni: <span class="num amount">${fmtEUR.format(totale)}</span>`;
+    heroPat.hidden = false;
+  } else {
+    heroPat.hidden = true;
+  }
 
   const mese = oggiISO().slice(0, 7);
   const delMese = MOVIMENTI.filter(m => m.data.startsWith(mese));
