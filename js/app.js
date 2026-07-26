@@ -1,6 +1,7 @@
 // ============================================================
 // EcoDash — bootstrap, auth, viste (Fasi 1–6: conti, movimenti,
 // grafici, scadenze, patrimonio, debiti, obiettivi/PAC)
+// Fase 5.1: i debiti hanno periodicità e data della prossima rata.
 // ============================================================
 
 let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [], BENI = [], DEBITI = [], OBIETTIVI = [];
@@ -265,6 +266,8 @@ function bindUI() {
           residuo,
           tasso: $('#deb-tasso').value !== '' ? Math.abs(parseFloat($('#deb-tasso').value)) : null,
           rata: $('#deb-rata').value !== '' ? Math.abs(parseFloat($('#deb-rata').value)) : null,
+          periodicita: $('#deb-periodicita').value,
+          prossima_rata: $('#deb-prossima').value || null,
           quota_capitale: $('#deb-quota').value !== '' ? Math.abs(parseFloat($('#deb-quota').value)) : null,
           conto_id: $('#deb-conto').value,
           categoria_id: $('#deb-categoria').value || null,
@@ -400,6 +403,8 @@ function openDebito(d) {
     $('#deb-residuo').value = Number(d.residuo);
     $('#deb-tasso').value = d.tasso != null ? Number(d.tasso) : '';
     $('#deb-rata').value = d.rata != null ? Number(d.rata) : '';
+    $('#deb-periodicita').value = d.periodicita || 'mensile';
+    $('#deb-prossima').value = d.prossima_rata || '';
     $('#deb-quota').value = d.quota_capitale != null ? Number(d.quota_capitale) : '';
     if (d.conto_id) $('#deb-conto').value = d.conto_id;
     $('#deb-categoria').value = d.categoria_id || '';
@@ -555,13 +560,15 @@ function renderCharts() {
 }
 
 // ---------- Scadenze ----------
-function statoScadenza(s) {
+// Stato di una data: unica fonte, usata da scadenze e rate dei debiti
+function statoData(iso) {
   const oggi = oggiISO();
   const entro = oggiISO(new Date(Date.now() + 30 * 86400000));
-  if (s.data_scadenza < oggi) return { label: 'Scaduta', cls: 'red' };
-  if (s.data_scadenza <= entro) return { label: 'In arrivo', cls: 'orange' };
+  if (iso < oggi) return { label: 'Scaduta', cls: 'red' };
+  if (iso <= entro) return { label: 'In arrivo', cls: 'orange' };
   return { label: 'Programmata', cls: 'blue' };
 }
+function statoScadenza(s) { return statoData(s.data_scadenza); }
 
 function rigaScadenza(s) {
   const st = statoScadenza(s);
@@ -644,20 +651,38 @@ function renderScadenze() {
   }));
 }
 
+// Scadenze + rate dei debiti in un'unica lista ordinata per data
+function prossimiImpegni(n = 6) {
+  const items = SCADENZE.map(s => ({
+    data: s.data_scadenza, nome: s.nome, importo: Number(s.importo), rata: false
+  }));
+  for (const d of DEBITI) {
+    if (d.estinto || !d.prossima_rata || d.rata == null) continue;
+    items.push({
+      data: d.prossima_rata, nome: d.nome,
+      importo: -Math.abs(Number(d.rata)), rata: true
+    });
+  }
+  return items
+    .sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0))
+    .slice(0, n);
+}
+
 function renderDashScadenze() {
   const tb = $('#tbl-dash-scadenze tbody');
-  const prossime = SCADENZE.slice(0, 5);
+  const prossime = prossimiImpegni();
   tb.innerHTML = prossime.length
-    ? prossime.map(s => {
-        const st = statoScadenza(s);
+    ? prossime.map(i => {
+        const st = statoData(i.data);
+        const tag = i.rata ? ' <span class="badge accent">rata</span>' : '';
         return `<tr>
-          <td class="num">${dataIT(s.data_scadenza)}</td>
-          <td>${esc(s.nome)}</td>
+          <td class="num">${dataIT(i.data)}</td>
+          <td>${esc(i.nome)}${tag}</td>
           <td><span class="badge ${st.cls}">${st.label}</span></td>
-          <td class="importo">${importoHTML(Number(s.importo))}</td>
+          <td class="importo">${importoHTML(i.importo)}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="4" class="empty">Nessuna scadenza in programma</td></tr>';
+    : '<tr><td colspan="4" class="empty">Nessun impegno in programma</td></tr>';
 }
 
 // ---------- Patrimonio ----------
@@ -726,17 +751,36 @@ function renderPatrimonio() {
 }
 
 // ---------- Debiti ----------
+// Rata riportata a equivalente mensile: una trimestrale da 900 pesa 300/mese
+function rataMensileEquiv(d) {
+  return Number(d.rata || 0) / MESI_RIC[d.periodicita || 'mensile'];
+}
+
 function cardDebito(d, prio) {
   const pct = Math.min(100, Math.max(0, Math.round((1 - Number(d.residuo) / Number(d.importo_iniziale)) * 100)));
+  const per = d.periodicita || 'mensile';
   const tassoB = d.tasso != null ? `<span class="badge grey">${('' + Number(d.tasso)).replace('.', ',')}%</span>` : '';
+  const perB = `<span class="badge grey">${esc(per)}</span>`;
   const prioB = prio ? '<span class="badge orange">priorit\u00e0</span>' : '';
   const estB = d.estinto ? '<span class="badge grey">estinto</span>' : '';
+  const prossB = (!d.estinto && d.prossima_rata)
+    ? `<span class="badge ${statoData(d.prossima_rata).cls}">${dataIT(d.prossima_rata)}</span>`
+    : '';
   const rataTxt = d.rata != null
     ? ` \u00b7 rata <span class="num amount">${fmtEUR.format(d.rata)}</span>`
     : '';
   const chk = (!d.estinto && d.rata != null)
     ? `<button class="btn btn-ghost btn-sm" data-ratadeb="${d.id}" title="Registra rata">\u2713</button>`
     : '';
+
+  // Piano di rientro stimato: le rate residue scalano la quota capitale
+  let piano = '';
+  if (!d.estinto && d.quota_capitale != null && Number(d.quota_capitale) > 0) {
+    const n = Math.ceil(Number(d.residuo) / Number(d.quota_capitale));
+    const fine = d.prossima_rata ? addMesi(d.prossima_rata, (n - 1) * MESI_RIC[per]) : null;
+    piano = `<div class="stat-sub">${fmtNum.format(n)} rate residue${fine ? ` \u00b7 fine stimata ${dataIT(fine)}` : ''}</div>`;
+  }
+
   return `
     <div class="stat-card">
       <div class="bene-head">
@@ -750,18 +794,27 @@ function cardDebito(d, prio) {
       <div class="stat-card-val ${d.estinto ? 'stat-grey' : 'stat-red'} amount">${fmtEUR.format(d.residuo)}</div>
       <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
       <div class="stat-sub">${fmtNum.format(pct)}% rimborsato \u00b7 iniziale <span class="num amount">${fmtEUR.format(d.importo_iniziale)}</span>${rataTxt}</div>
-      <div class="stat-sub">${tassoB} ${prioB} ${estB}</div>
+      ${piano}
+      <div class="stat-sub">${perB} ${prossB} ${tassoB} ${prioB} ${estB}</div>
     </div>`;
 }
 
 function renderDebiti() {
   const attivi = DEBITI.filter(d => !d.estinto);
   const residuoTot = attivi.reduce((s, d) => s + Number(d.residuo), 0);
-  const rataTot = attivi.reduce((s, d) => s + Number(d.rata || 0), 0);
+  const rataMese = attivi.reduce((s, d) => s + rataMensileEquiv(d), 0);
 
   $('#deb-stat-residuo').textContent = fmtEUR.format(residuoTot);
   $('#deb-stat-residuo-sub').textContent = attivi.length + ' debiti attivi';
-  $('#deb-stat-rate').textContent = fmtEUR.format(rataTot);
+  $('#deb-stat-rate').textContent = fmtEUR.format(rataMese);
+
+  const pross = attivi
+    .filter(d => d.prossima_rata && d.rata != null)
+    .sort((a, b) => (a.prossima_rata < b.prossima_rata ? -1 : 1))[0];
+  $('#deb-stat-prossima').textContent = pross ? fmtEUR.format(pross.rata) : '\u2014';
+  $('#deb-stat-prossima-sub').textContent = pross
+    ? `${dataIT(pross.prossima_rata)} \u00b7 ${pross.nome}`
+    : 'nessuna rata programmata';
 
   const ord = [...DEBITI].sort((a, b) => {
     if (a.estinto !== b.estinto) return a.estinto ? 1 : -1;
@@ -780,8 +833,9 @@ function renderDebiti() {
     if (!d) return;
     const conto = CONTI.find(c => c.id === d.conto_id);
     if (!conto) { toast('Assegna un conto valido al debito (\u270e)', 'error'); return; }
+    const quando = d.prossima_rata ? ` in scadenza il ${dataIT(d.prossima_rata)}` : '';
     const ok = await confirmAsk(
-      `Registrare la rata di ${fmtEUR.format(d.rata)} per "${d.nome}" su ${conto.nome}?`,
+      `Registrare la rata di ${fmtEUR.format(d.rata)} per "${d.nome}"${quando} su ${conto.nome}?`,
       'Registra', false);
     if (!ok) return;
     withBusy(b, async () => {
@@ -795,7 +849,11 @@ function renderDebiti() {
         });
         const scala = d.quota_capitale != null ? Number(d.quota_capitale) : Number(d.rata);
         const nuovo = Math.max(0, Number(d.residuo) - scala);
-        await DB.updDebito(d.id, { residuo: nuovo, estinto: nuovo <= 0 });
+        const patch = { residuo: nuovo, estinto: nuovo <= 0 };
+        if (d.prossima_rata && nuovo > 0) {
+          patch.prossima_rata = addMesi(d.prossima_rata, MESI_RIC[d.periodicita || 'mensile']);
+        }
+        await DB.updDebito(d.id, patch);
         toast(nuovo <= 0 ? 'Registrata \u2014 debito estinto!' : 'Registrata', 'success');
         await refresh();
       } catch (err) {
