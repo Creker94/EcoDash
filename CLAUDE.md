@@ -9,13 +9,45 @@ Istruzioni operative per lavorare su questo progetto. **La fonte di verità per 
 - Connettori necessari per operare: **GitHub** (`Creker94/EcoDash`), **Supabase** (ref `zznyhifatcpctkpeubtj`), **Netlify** (progetto `ecodash-app`, siteId `1aef73da-701a-4e01-9472-723d9988ce99`)
 - Lo schema DB si modifica **solo via migrazioni Supabase** (`apply_migration`), mai a mano
 
-### Dati reali già caricati
+### Dati reali caricati
 
-- **Conto**: Banco BPM c/c 00227227. Il `saldo_iniziale` è ancora **0**: va impostato al saldo reale, altrimenti hero, grafico andamento e patrimonio partono sbagliati.
-- **Debiti** (residuo 161.105,47 €): 2 mutui Banco BPM, 2 rateazioni Agenzia Entrate (trimestrali, 3,5%), 1 debito privato verso Immobiliare Nano (senza interessi, fine 15/12/2027)
-- **Entrate fisse** (6.223 €/mese): stipendio 3.000 il 30; affitti Lavanderia 1.723 e Locali Via Ariosto 1.000 il 15; Box 500 il 30
-- **Uscite ricorrenti**: INPS gestione commercianti 1.137,50 a trimestre (4.550/anno, ancora al giorno 16 di feb/mag/ago/nov con slittamento al primo giorno lavorativo); premio assicurativo 433,05 annuo il 25/03
-- **Ancora da inserire**: IRPEF sugli affitti (arriverà una dichiarazione dei redditi da cui ricavare le imposte), IMU, TARI, utenze, beni (orologi)
+**Conto**: Banco BPM c/c 00227227. ⚠️ Il `saldo_iniziale` è ancora **0**: va impostato al saldo reale, altrimenti hero, grafico andamento e patrimonio partono sbagliati. È l'unico dato mancante che rende finti i numeri a schermo.
+
+**Debiti** — residuo totale 161.105,47 €, tutti allineati ai pagamenti al 26/07/2026:
+
+| Debito | Residuo | Rata | Periodicità |
+|---|---|---|---|
+| Mutuo BPM Privati ordinario n.4944997 | 53.641,84 | 981,67 · 1,76% | mensile, 31 |
+| Mutuo BPM Casa n.5315691 | 47.766,15 | 285,46 · 0,98% | mensile, 31 |
+| Immobiliare Nano | 42.500,00 | 2.500,00 · senza interessi | mensile, 15, fino al 15/12/2027 |
+| Rateazione AdE com. 07/2024 | 11.093,68 | 913,10 · 3,5% | trimestrale, 31 |
+| Rateazione AdE avviso 02/2025 (anno 2022) | 6.103,80 | 427,13 · 3,5% | trimestrale, 31 |
+
+Nei mutui le rate sono scese di 2,00 € da maggio 2026 (sparite le spese di incasso): 981,67 e 285,46, non 983,67 e 287,46.
+
+**Scadenze ricorrenti** (10 attive):
+
+| Voce | Importo | Ricorrenza | Equivalente mese |
+|---|---|---|---|
+| Stipendio | +3.000,00 | mensile, 30 | +3.000,00 |
+| Affitto Lavanderia | +1.723,00 | mensile, 15 | +1.723,00 |
+| Affitto Locali Via Ariosto | +1.000,00 | mensile, 15 | +1.000,00 |
+| Affitto Box | +500,00 | mensile, 30 | +500,00 |
+| INPS gestione commercianti | −1.137,50 | trimestrale, ancora 16 | −379,17 |
+| Spese condominiali | −2.000,00 | annuale, 1 giugno | −166,67 |
+| Bolletta luce | −135,00 | bimestrale, 9 | −67,50 |
+| Fastweb · internet | −48,88 | mensile, 5 | −48,88 |
+| Premio assicurativo | −433,05 | annuale, 25 marzo | −36,09 |
+| TARI | −424,00 | annuale, 31 luglio | −35,33 |
+
+**Quadro mensile equivalente**: entrate 6.223,00 − debiti 4.213,87 − altre uscite ricorrenti 733,64 = **margine +1.275,49 €**, al lordo delle spese variabili e delle imposte non ancora inserite.
+
+**Esclusioni volute — non reinserirle, sarebbe doppio conteggio o rumore:**
+- **Gas e acqua**: comprese nelle spese condominiali
+- **Carburante**: pagato con carta aziendale, non transita dal conto personale
+- **Spese variabili** (spesa, svago, salute): vanno registrate come movimenti, non come scadenze
+
+**Ancora da inserire**: IRPEF sugli affitti (arriverà una dichiarazione dei redditi da cui ricavare le imposte), IMU se dovuta, beni per il patrimonio (orologi).
 
 ## Cos'è
 
@@ -38,6 +70,8 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
 - `debiti` — importo_iniziale, residuo, tasso (per avalanche), rata, **periodicita** (mensile→annuale), **prossima_rata**, **giorno_ancora**, **quota_capitale** (se valorizzata, il residuo scende solo di quella; il movimento resta l'intera rata — corretto per i mutui), estinto
 - `obiettivi` — target, versato, rata_mensile (per la proiezione), conto_id preferito, archiviato
 - Tutte con `user_id default auth.uid()` + policy RLS `user_id = auth.uid()`
+
+⚠️ Inserendo dati via `execute_sql` (fuori dall'app) `auth.uid()` è NULL: il `user_id` va passato esplicitamente. L'utente è `c60dd1ef-9350-4dce-831a-3e6adeab9129`.
 
 ## Regole non negoziabili (lezioni GoldGest)
 
@@ -81,12 +115,25 @@ Dashboard PWA (mobile-first, iPhone standalone) per la gestione finanziaria pers
    - ✅ 5.2 — `giorno_ancora` su scadenze e debiti, `prossimaData()` al posto di `addMesi` nelle ricorrenze
 6. ✅ Obiettivi e PAC — versamenti, proiezioni (Fase 6)
 
-**Roadmap completata.** Prossime evoluzioni candidate, in ordine di valore stimato:
+## Prossimo passo — Fase 7: collegamento bancario (Enable Banking)
+
+Discussa il 26/07/2026, **non ancora avviata**. Il proprietario l'ha già fatta su GoldGest, quindi ha esperienza diretta: **prima di progettare, chiedergli cosa è andato storto lì** (in particolare scadenza del consenso e deduplica).
+
+Due nodi architetturali emersi:
+
+1. **Serve un pezzo lato server.** Enable Banking firma le richieste con un JWT RS256 generato dalla chiave RSA privata dell'applicazione (TTL max 24 h) e quel token non va mai esposto al client: identifica l'applicazione e dà accesso a tutte le sue sessioni. La chiave NON può stare in `js/config.js`. Casa giusta: **Supabase Edge Function**, chiave nei secret del progetto. Il piano "Restricted Production" è gratuito ma solo sui conti che l'utente collega in prima persona — che è esattamente questo caso.
+2. **Doppio conteggio.** Oggi il ✓ su scadenze e debiti *crea* il movimento; se anche la banca importa la stessa operazione, ogni rata compare due volte. Direzione proposta: la banca diventa fonte di verità, `movimenti` prende `fonte` (manuale/banca) e `external_id` univoco per la deduplica, `conti` prende IBAN e id esterno, e il ✓ diventa **"concilia"** — propone il movimento importato che corrisponde per importo e finestra di date, l'utente conferma, la scadenza avanza e il residuo scala.
+
+Da mettere in conto: rinnovo SCA del consenso ogni pochi mesi (l'app deve mostrare "consenso scaduto", non fallire in silenzio), storico bancario tipicamente limitato a ~90 giorni, copertura di Banco BPM da verificare.
+
+**Primo passo concreto**: solo sandbox, una Edge Function che elenca gli ASPSP italiani e conferma la presenza di Banco BPM. Nessuna migrazione di schema prima di quella verifica.
+
+### Altre evoluzioni candidate
 
 1. **Modulo fiscale** dalla dichiarazione dei redditi: IRPEF sugli affitti, acconti e saldo, con le scadenze di giugno/luglio e novembre
 2. **Trasferimenti tra conti** (oggi un giroconto richiede due movimenti manuali)
 3. **Service worker + offline** seguendo le regole §8 della guida (cache solo `res.ok`, bump versione+cache insieme, barra aggiornamento a z 6000)
-4. **Piano di ammortamento reale** per i mutui (tabella `rate`): oggi `quota_capitale` è fissa, mentre nei mutui cresce ogni mese — le "rate residue" sono quindi una stima per eccesso
+4. **Piano di ammortamento reale** per i mutui (tabella `rate`): oggi `quota_capitale` è fissa, mentre nei mutui cresce ogni mese — le "rate residue" sono quindi una stima per eccesso (mutuo privati: 60 stimate contro 57 reali)
 5. **Slittamento ai giorni lavorativi** per le scadenze fiscali (l'INPS slitta al primo giorno lavorativo: oggi la data va corretta a mano)
 6. **Storico valutazioni beni** (tabella `beni_valori`) per il grafico del patrimonio nel tempo
 7. **Export dati** (CSV) — ricordare la regola §8.5: le scritture su DB si completano prima, l'export è sempre l'ultima operazione
