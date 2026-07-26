@@ -1,5 +1,5 @@
 // ============================================================
-// EcoDash — bootstrap, auth, viste (Fase 1: conti + movimenti)
+// EcoDash — bootstrap, auth, viste (Fase 1–2: conti, movimenti, grafici)
 // ============================================================
 
 let CONTI = [], CATEGORIE = [], MOVIMENTI = [];
@@ -41,6 +41,7 @@ async function boot() {
 async function refresh() {
   [CONTI, CATEGORIE, MOVIMENTI] = await Promise.all([DB.conti(), DB.categorie(), DB.movimenti()]);
   renderDashboard();
+  renderCharts();
   renderMovimenti();
   renderConti();
   fillSelects();
@@ -232,6 +233,75 @@ function saldoConto(id) {
 }
 function saldoTotale() {
   return CONTI.reduce((s, c) => s + saldoConto(c.id), 0);
+}
+
+// Serie giornaliera del saldo totale (ultimi N giorni)
+function serieSaldo(giorni = 90) {
+  const oggi = oggiISO();
+  const start = oggiISO(new Date(Date.now() - giorni * 86400000));
+  const base = CONTI.reduce((s, c) => s + Number(c.saldo_iniziale), 0);
+
+  const perData = {};
+  let prima = 0;
+  for (const m of MOVIMENTI) {
+    if (m.data < start) prima += Number(m.importo);
+    else perData[m.data] = (perData[m.data] || 0) + Number(m.importo);
+  }
+
+  let run = base + prima;
+  const out = [];
+  const t = new Date(start + 'T00:00:00');
+  for (;;) {
+    const iso = oggiISO(t);
+    run += perData[iso] || 0;
+    out.push({ x: iso, y: run });
+    if (iso >= oggi) break;
+    t.setDate(t.getDate() + 1);
+  }
+  return out;
+}
+
+// Entrate/uscite per ciascuno degli ultimi N mesi
+function serieMensile(n = 6) {
+  const nomi = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const oggi = new Date();
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const m = new Date(oggi.getFullYear(), oggi.getMonth() - i, 1);
+    const pref = oggiISO(m).slice(0, 7);
+    const del = MOVIMENTI.filter(x => x.data.startsWith(pref));
+    out.push({
+      label: nomi[m.getMonth()],
+      entrate: del.filter(x => x.importo > 0).reduce((s, x) => s + Number(x.importo), 0),
+      uscite: Math.abs(del.filter(x => x.importo < 0).reduce((s, x) => s + Number(x.importo), 0))
+    });
+  }
+  return out;
+}
+
+// Uscite del mese corrente per categoria: top 5 + "Altro" (§9)
+function speseCategoria() {
+  const pref = oggiISO().slice(0, 7);
+  const map = {};
+  for (const m of MOVIMENTI) {
+    if (m.importo >= 0 || !m.data.startsWith(pref)) continue;
+    const nome = m.categoria?.nome || 'Senza categoria';
+    map[nome] = (map[nome] || 0) + Math.abs(Number(m.importo));
+  }
+  const arr = Object.entries(map).map(([nome, val]) => ({ nome, val }))
+    .sort((a, b) => b.val - a.val);
+  if (arr.length > 6) {
+    const top = arr.slice(0, 5);
+    top.push({ nome: 'Altro', val: arr.slice(5).reduce((s, x) => s + x.val, 0) });
+    return top;
+  }
+  return arr;
+}
+
+function renderCharts() {
+  Charts.line($('#chart-saldo'), (CONTI.length || MOVIMENTI.length) ? serieSaldo() : []);
+  Charts.bars($('#chart-mesi'), serieMensile());
+  Charts.hbars($('#chart-cat'), speseCategoria());
 }
 
 // ---------- Render ----------

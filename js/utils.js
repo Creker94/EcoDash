@@ -6,6 +6,10 @@
 // Un solo formatter monetario
 const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 
+// Formatter NUMERICO per assi/scale dei grafici (non è monetario:
+// fmtEUR resta l'unico per gli importi; qui solo tick di scala)
+const fmtNum = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 });
+
 // Una sola utility data, in ora locale (mai toISOString().slice)
 function oggiISO(d = new Date()) {
   const y = d.getFullYear();
