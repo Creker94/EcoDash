@@ -2,6 +2,7 @@
 // EcoDash — bootstrap, auth, viste (Fasi 1–6: conti, movimenti,
 // grafici, scadenze, patrimonio, debiti, obiettivi/PAC)
 // Fase 5.1: i debiti hanno periodicità e data della prossima rata.
+// Fase 5.2: ricorrenze ancorate a un giorno fisso (niente deriva a febbraio).
 // ============================================================
 
 let CONTI = [], CATEGORIE = [], MOVIMENTI = [], SCADENZE = [], BENI = [], DEBITI = [], OBIETTIVI = [];
@@ -206,11 +207,14 @@ function bindUI() {
       try {
         const raw = Math.abs(parseFloat($('#sca-importo').value));
         if (!raw) { toast('Inserisci un importo valido', 'error'); return; }
+        const data = $('#sca-data').value;
+        const ric = $('#sca-ric').value;
         await DB.addScadenza({
           nome: $('#sca-nome').value.trim(),
           importo: tipoScadenza === 'uscita' ? -raw : raw,
-          data_scadenza: $('#sca-data').value,
-          ricorrenza: $('#sca-ric').value,
+          data_scadenza: data,
+          ricorrenza: ric,
+          giorno_ancora: ric === 'nessuna' ? null : giornoDi(data),
           conto_id: $('#sca-conto').value,
           categoria_id: $('#sca-categoria').value || null
         });
@@ -260,6 +264,17 @@ function bindUI() {
         if (!iniziale) { toast('Inserisci l\'importo iniziale', 'error'); return; }
         const resRaw = $('#deb-residuo').value;
         const residuo = resRaw !== '' ? Math.abs(parseFloat(resRaw)) : iniziale;
+
+        // L'ancora si ricava dalla data scelta; in modifica, se la data non è
+        // cambiata, si conserva quella già impostata (può differire dalla data,
+        // es. INPS: scadenza slittata al 20 ma giorno di riferimento 16)
+        const dataPross = $('#deb-prossima').value || null;
+        const orig = debitoInEdit ? DEBITI.find(x => x.id === debitoInEdit) : null;
+        const ancora = !dataPross ? null
+          : (orig && orig.prossima_rata === dataPross && orig.giorno_ancora)
+            ? orig.giorno_ancora
+            : giornoDi(dataPross);
+
         const payload = {
           nome: $('#deb-nome').value.trim(),
           importo_iniziale: iniziale,
@@ -267,7 +282,8 @@ function bindUI() {
           tasso: $('#deb-tasso').value !== '' ? Math.abs(parseFloat($('#deb-tasso').value)) : null,
           rata: $('#deb-rata').value !== '' ? Math.abs(parseFloat($('#deb-rata').value)) : null,
           periodicita: $('#deb-periodicita').value,
-          prossima_rata: $('#deb-prossima').value || null,
+          prossima_rata: dataPross,
+          giorno_ancora: ancora,
           quota_capitale: $('#deb-quota').value !== '' ? Math.abs(parseFloat($('#deb-quota').value)) : null,
           conto_id: $('#deb-conto').value,
           categoria_id: $('#deb-categoria').value || null,
@@ -624,7 +640,9 @@ function renderScadenze() {
         if (s.ricorrenza === 'nessuna') {
           await DB.updScadenza(s.id, { archiviata: true });
         } else {
-          await DB.updScadenza(s.id, { data_scadenza: addMesi(s.data_scadenza, MESI_RIC[s.ricorrenza]) });
+          await DB.updScadenza(s.id, {
+            data_scadenza: prossimaData(s.data_scadenza, MESI_RIC[s.ricorrenza], s.giorno_ancora)
+          });
         }
         toast('Registrata', 'success');
         await refresh();
@@ -777,7 +795,9 @@ function cardDebito(d, prio) {
   let piano = '';
   if (!d.estinto && d.quota_capitale != null && Number(d.quota_capitale) > 0) {
     const n = Math.ceil(Number(d.residuo) / Number(d.quota_capitale));
-    const fine = d.prossima_rata ? addMesi(d.prossima_rata, (n - 1) * MESI_RIC[per]) : null;
+    const fine = d.prossima_rata
+      ? prossimaData(d.prossima_rata, (n - 1) * MESI_RIC[per], d.giorno_ancora)
+      : null;
     piano = `<div class="stat-sub">${fmtNum.format(n)} rate residue${fine ? ` \u00b7 fine stimata ${dataIT(fine)}` : ''}</div>`;
   }
 
@@ -851,7 +871,8 @@ function renderDebiti() {
         const nuovo = Math.max(0, Number(d.residuo) - scala);
         const patch = { residuo: nuovo, estinto: nuovo <= 0 };
         if (d.prossima_rata && nuovo > 0) {
-          patch.prossima_rata = addMesi(d.prossima_rata, MESI_RIC[d.periodicita || 'mensile']);
+          patch.prossima_rata = prossimaData(
+            d.prossima_rata, MESI_RIC[d.periodicita || 'mensile'], d.giorno_ancora);
         }
         await DB.updDebito(d.id, patch);
         toast(nuovo <= 0 ? 'Registrata \u2014 debito estinto!' : 'Registrata', 'success');
